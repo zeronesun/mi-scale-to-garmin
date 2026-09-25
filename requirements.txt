@@ -1,0 +1,13 @@
+requests
+cryptography
+curlify
+fit-tool
+garth
+micloud
+pydantic
+pydantic-core
+requests-oauthlib
+annotated-types
+typing-extensions
+typing-inspection
+oauthlib

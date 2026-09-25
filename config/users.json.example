@@ -1,0 +1,19 @@
+{
+    "users": [
+        {
+            "username": "your_xiaomi_username",
+            "password": "your_xiaomi_password",
+            "model": "yunmai.scales.ms103",
+            "token": {
+                "userId": "",
+                "passToken": "",
+                "ssecurity": ""
+            },
+            "garmin": {
+                "email": "your_garmin_email",
+                "password": "your_garmin_password",
+                "domain": "CN"
+            }
+        }
+    ]
+}

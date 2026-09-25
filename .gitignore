@@ -1,0 +1,63 @@
+# Virtual environment
+bin/
+include/
+lib/
+pyvenv.cfg
+
+.cache
+*.pyc
+node_modules
+yarn-error.log
+
+/public
+# Build directory
+/build
+.DS_Store
+.sass-cache/
+_posts/
+_site/
+
+.mypy_cache
+
+/.vscode
+.idea
+
+.Python
+
+config.yaml
+
+
+/FIT_OUT
+/webdav-db
+/webdav-fit
+/garmin-fit
+/coros-fit
+/.venv
+
+# Generated weight data
+weight_data_*.json
+garmin-fit/
+.garth/
+
+test-users.json
+
+# 敏感配置：账号密码 / token（根目录 + config 目录）
+users.json
+config/users.json
+users-backup.json
+
+# Docker - sensitive config and data
+data/*
+
+# Claude
+/.claude
+
+# Git worktrees
+.worktrees
+
+# release
+/release/*
+
+dist/*
+GarminWeightSync.spec/*
+CLAUDE.md
