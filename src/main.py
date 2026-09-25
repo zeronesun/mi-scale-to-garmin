@@ -1,7 +1,8 @@
 
 from garmin.client import GarminClient
 from garmin.fit_generator import create_weight_fit_file
-from xiaomi.client import XiaomiClient, unmarshal_fitness_data
+from xiaomi.client import (XiaomiClient, unmarshal_fitness_data,
+                           merge_weight_records)
 from xiaomi.config import ConfigManager
 import argparse
 import sys
@@ -162,27 +163,49 @@ def main():
                     config_mgr.update_user_token(username, new_token_data)
                     logger.info("Xiaomi token refreshed and saved")
 
-                # Fetch weights - prefer using the new API (supports imported data from zeeplife)
-                weights = []
+                # Fetch weights - 双源合并：旧 API 优先（实时），新 API 按时间戳补充（Zeeplife 导入数据）
+                legacy_weights = []
+                new_weights = []
 
-                # First attempt to use the new API endpoint
-                logger.info("Trying to fetch weight data using the new API...")
+                # 1. 旧 API（主数据源，设备直传，实时）
+                logger.info(f"Fetching weight data using legacy API, model: {model}...")
                 try:
-                    weights = client.get_model_weights(model)
+                    legacy_weights = client.get_model_weights(model)
                     logger.info(
-                        f"Parsed and obtained {len(weights)} weight records")
+                        f"Legacy API returned {len(legacy_weights)} weight records")
                 except Exception as e:
-                    logger.warning(
-                        f"Failed to fetch data with the new API: {e}")
-                    logger.info("Falling back to legacy API...")
+                    logger.warning(f"Failed to fetch data with legacy API: {e}")
 
-                # If no data from the new API, use the legacy API (for backward compatibility)
-                if not weights:
+                # 2. 新 API（补充数据源，聚合库有延迟，但含 Zeeplife 导入数据）
+                logger.info("Fetching weight data using new API...")
+                try:
                     fitness_data = client.get_fitness_data_by_time(
                         key="weight")
-                    logger.info(f"Using legacy API, model: {model}")
-                    # weights = client.get_model_weights(model)
-                    weights = unmarshal_fitness_data(fitness_data)
+                    new_weights = unmarshal_fitness_data(fitness_data)
+                    logger.info(
+                        f"New API returned {len(new_weights)} weight records")
+                except Exception as e:
+                    logger.warning(f"Failed to fetch data with new API: {e}")
+
+                # 3. 合并：同一时间戳旧 API 优先，新 API 独有的记录补充进来
+                weights, supplement_count = merge_weight_records(
+                    legacy_weights, new_weights)
+                logger.info(
+                    f"Merged: {len(weights)} total "
+                    f"(legacy {len(legacy_weights)} + new API supplement {supplement_count})")
+
+                # 4. 标记每条记录的数据来源（方便 debug）
+                legacy_ts = {int(w.get('Timestamp', 0)) for w in legacy_weights}
+                for w in weights:
+                    if int(w.get('Timestamp', 0)) in legacy_ts:
+                        w['DataSource'] = 'legacy'
+                    else:
+                        w['DataSource'] = 'new_api'
+                logger.info(
+                    "Per-record source: " +
+                    ", ".join(f"{w.get('Date', '?')}[{w.get('DataSource')}]"
+                              for w in weights[:10])
+                    + (f" ... (+{len(weights) - 10} more)" if len(weights) > 10 else ""))
                 if weights:
                     logger.info(
                         f"Successfully retrieved {len(weights)} weight records")
@@ -190,6 +213,8 @@ def main():
 
                     # Save to JSON file
                     output_file = f"data/weight_data_{username}.json"
+                    output_path = Path(output_file)
+                    output_path.parent.mkdir(parents=True, exist_ok=True)
                     with open(output_file, 'w', encoding='utf-8') as f:
                         json.dump(weights, f, indent=2, ensure_ascii=False)
                     logger.info(f"Weight data saved to {output_file}")

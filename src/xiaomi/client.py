@@ -49,6 +49,13 @@ def parse_any_int(v):
 
 
 def unmarshal_scale_data(items):
+    # -----------------------------------------------
+    # 打印原始数据用于调试（临时，已注释）
+    # import json
+    # print("=== RAW SCALE DATA ===")
+    # print(json.dumps(items, indent=2, ensure_ascii=False))
+    # print("======================")
+    # -----------------------------------------------
     weights = []
     last_create_time = 0
 
@@ -120,6 +127,15 @@ def unmarshal_scale_data(items):
 
 
 def unmarshal_fitness_data(data_list):
+    # -----------------------------------------------
+    # 打印原始数据用于调试（临时，已注释）
+    # import json
+    # print("=== RAW FITNESS DATA ===")
+    # print(json.dumps(data_list, indent=2, ensure_ascii=False))
+    # print("========================")
+    # -----------------------------------------------
+
+    
     """
     Parse health data returned from the new API.
     Data format:
@@ -164,17 +180,45 @@ def unmarshal_fitness_data(data_list):
         w['BodyFat'] = parse_any_float(value_data.get("body_fat_rate"))
         w['BodyWater'] = parse_any_float(value_data.get("moisture_rate"))
         w['BoneMass'] = parse_any_float(value_data.get("bone_mass"))
-        w['MetabolicAge'] = parse_any_int(value_data.get("ma"))
+        w['MetabolicAge'] = parse_any_int(value_data.get("body_age"))
         w['MuscleMass'] = parse_any_float(value_data.get(
             "muscle_rate")) / 100 * parse_any_float(value_data.get("weight"))
         w['VisceralFat'] = parse_any_int(value_data.get("visceral_fat"))
         w['BasalMetabolism'] = parse_any_int(
             value_data.get("basal_metabolism"))
-        w['BodyScore'] = parse_any_int(value_data.get("sbc"))
-        w['HeartRate'] = parse_any_int(value_data.get("heartRate"))
+        w['BodyScore'] = parse_any_int(value_data.get("body_score"))
+        w['HeartRate'] = parse_any_int(value_data.get("bpm"))
         w['ProteinRate'] = parse_any_float(value_data.get("protein_rate"))
         weights.append(w)
     return weights
+
+
+def merge_weight_records(legacy_weights, new_weights):
+    """
+    双源合并体重数据：旧 API 优先，新 API 按时间戳补充。
+
+    - 同一时间戳（秒级）的记录保留旧 API 版本（实时、设备直传）
+    - 仅新 API 有的记录（如 Zeeplife 导入数据）补充进来
+    - 返回按时间戳降序（最新在前）
+
+    Returns:
+        (merged_list, supplement_count): 合并后的列表、新 API 补充的条数
+    """
+    merged = {}
+    for w in legacy_weights or []:
+        ts = int(w.get('Timestamp', 0))
+        merged[ts] = w
+
+    supplement_count = 0
+    for w in new_weights or []:
+        ts = int(w.get('Timestamp', 0))
+        if ts not in merged:
+            merged[ts] = w
+            supplement_count += 1
+
+    result = sorted(
+        merged.values(), key=lambda x: x.get('Timestamp', 0), reverse=True)
+    return result, supplement_count
 
 
 class XiaomiClient:

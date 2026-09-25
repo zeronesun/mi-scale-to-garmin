@@ -42,8 +42,7 @@ def create_weight_fit_file(
                  - 'MetabolicAge' (years)
                  - 'MuscleMass' (kg)
                  - 'VisceralFat' (rating)
-                 - 'BasalMetabolism' (kcal)
-        output_filename: The name of the output FIT file.
+                 - 'BasalMetabolism' (kcal)                 - 'BodyScore' (rating, 映射到 FIT physique_rating)        output_filename: The name of the output FIT file.
         filter_config: Optional filter configuration for filtering weight data.
     """
     # Apply filter if configured
@@ -139,6 +138,9 @@ def create_weight_fit_file(
 
             if w.get('BasalMetabolism') and not _is_nan(w['BasalMetabolism']):
                 mesg.basal_met = float(w['BasalMetabolism'])
+
+            if w.get('BodyScore') and not _is_nan(w['BodyScore']):
+                mesg.physique_rating = int(w['BodyScore'])
         except Exception as e:
             _LOGGER.warning(f"Failed to parse weight data: {e}. Data: {w}")
         
