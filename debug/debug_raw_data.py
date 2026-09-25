@@ -25,9 +25,10 @@ def main():
         username = user.get("username")
         token = user.get("token")
         model = user.get("model", "yunmai.scales.ms103")
+        xiaomi_prefix = user.get("xiaomi_prefix") or username
 
         if not username or not token or not token.get("userId"):
-            print(f"跳过 {username}: 无有效 token")
+            print(f"跳过 {xiaomi_prefix}: 无有效 token")
             continue
 
         client = XiaomiClient(username=username)
@@ -38,7 +39,7 @@ def main():
         )
         client.login_from_token()
 
-        # ===== 1. 旧 API：get_model_weights（内部已打印 RAW SCALE DATA）=====
+        # ===== 1. 旧 API：get_model_weights（打印解析后的记录与字段）=====
         print("\n" + "=" * 80)
         print(f"【旧 API】get_model_weights(model={model})")
         print("=" * 80)

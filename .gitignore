@@ -34,7 +34,8 @@ config.yaml
 /coros-fit
 /.venv
 
-# Generated weight data
+# Generated body data
+body_data_*.json
 weight_data_*.json
 garmin-fit/
 .garth/

@@ -96,6 +96,11 @@ class SyncOrchestrator:
                 )
                 return
 
+            # 脱敏标识：有前缀用前缀，无则回退到 username / garmin.email
+            xiaomi_prefix = user.xiaomi_prefix or user.username
+            garmin_prefix = user.garmin_prefix or (
+                user.garmin.email if user.garmin else user.username)
+
             # 阶段 1: 登录小米并获取数据
             yield SyncProgress(
                 stage="fetching",
@@ -159,7 +164,7 @@ class SyncOrchestrator:
                 # 保存 token
                 token_data = login_result["token"]
                 self.config_mgr.update_user_token(username, token_data)
-                logger.info(f"用户 {username} 登录成功,Token 已保存")
+                logger.info(f"用户 {xiaomi_prefix} 登录成功,Token 已保存")
 
                 # 设置凭证到 client
                 xiaomi_client.set_credentials(
@@ -173,7 +178,7 @@ class SyncOrchestrator:
                     new_token_data = xiaomi_client.login_from_token()
                     if new_token_data:
                         self.config_mgr.update_user_token(username, new_token_data)
-                        logger.info(f"用户 {username} 的 Token 已刷新")
+                        logger.info(f"用户 {xiaomi_prefix} 的 Token 已刷新")
                 except Exception as e:
                     # Token 刷新失败,但继续使用刚获取的 token
                     logger.warning(f"Token 刷新失败,但继续使用: {e}")
@@ -200,7 +205,7 @@ class SyncOrchestrator:
                     new_token_data = xiaomi_client.login_from_token()
                     if new_token_data:
                         self.config_mgr.update_user_token(username, new_token_data)
-                        logger.info(f"用户 {username} 的 Token 已刷新")
+                        logger.info(f"用户 {xiaomi_prefix} 的 Token 已刷新")
 
                 except Exception as e:
                     yield SyncProgress(
@@ -328,7 +333,8 @@ class SyncOrchestrator:
                 email=user.garmin.email,
                 password=user.garmin.password,
                 auth_domain=user.garmin.domain,
-                session_dir=str(session_dir)  # 关键：传入可写路径
+                session_dir=str(session_dir),  # 关键：传入可写路径
+                session_name=garmin_prefix
             )
 
             # 登录 Garmin - 根据是否有 input_callback 选择登录方法
@@ -391,7 +397,7 @@ class SyncOrchestrator:
                     )
                     return
 
-                chunk_filename = output_dir / f"weight_{username}_{timestamp}_{idx}.fit"
+                chunk_filename = output_dir / f"body_{xiaomi_prefix}_{timestamp}_{idx}.fit"
 
                 yield SyncProgress(
                     stage="generating",

@@ -22,11 +22,12 @@ class ActivityUploadFormat(Enum):
     TCX = auto()
 
 class GarminClient:
-    def __init__(self, email, password, auth_domain="CN", session_dir="data/.garth"):
+    def __init__(self, email, password, auth_domain="CN", session_dir="data/.garth", session_name=None):
         self.email = email
         self.password = password
         self.auth_domain = auth_domain
-        self.session_dir = Path(session_dir) / email  # Segregate sessions by email
+        self.session_name = session_name or email  # 脱敏标识，默认用 email
+        self.session_dir = Path(session_dir) / self.session_name  # Segregate sessions by name
         # Create independent Client instance to avoid conflicts with global garth singleton
         self._client = Client()
         self.headers = {
@@ -65,18 +66,19 @@ class GarminClient:
         try:
             # Try to resume from saved session
             if self.session_dir.exists() and any(self.session_dir.iterdir()):
-                logger.info(f"Attempting to resume Garmin session for {self.email} from {self.session_dir}")
+                logger.info(f"Attempting to resume Garmin session for {self.session_name} from {self.session_dir}")
                 try:
                     self._client.load(str(self.session_dir))
                     # Check if session is still valid by accessing username
-                    username = self._client.username
-                    logger.info(f"Garmin session resumed successfully for user: {username}")
+                    # (访问 username 属性会触发 API 调用验证会话，但不打印账号)
+                    _ = self._client.username
+                    logger.info(f"Garmin session resumed successfully for user: {self.session_name}")
                     return True
                 except Exception as e:
                     logger.warning(f"Failed to resume session: {e}. Performing fresh login.")
 
             # Perform fresh login
-            logger.info(f"Logging in to Garmin for {self.email}...")
+            logger.info(f"Logging in to Garmin for {self.session_name}...")
             domain = "garmin.cn" if self.auth_domain and self.auth_domain.upper() == "CN" else "garmin.com"
             self._client.configure(domain=domain)
 
@@ -95,7 +97,7 @@ class GarminClient:
 
             return True
         except Exception as e:
-            logger.error(f"Garmin login failed for {self.email}: {e}")
+            logger.error(f"Garmin login failed for {self.session_name}: {e}")
             return False
 
     def upload_fit(self, fit_path: Union[str, Path]):

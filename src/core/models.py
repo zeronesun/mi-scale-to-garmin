@@ -29,6 +29,8 @@ class UserModel:
     username: str
     password: str
     model: str = "yunmai.scales.ms103"
+    xiaomi_prefix: Optional[str] = None
+    garmin_prefix: Optional[str] = None
     token: Optional[TokenData] = None
     garmin: Optional[GarminConfig] = None
     created_at: Optional[str] = None
@@ -41,6 +43,12 @@ class UserModel:
             "password": self.password,
             "model": self.model,
         }
+
+        if self.xiaomi_prefix:
+            result["xiaomi_prefix"] = self.xiaomi_prefix
+
+        if self.garmin_prefix:
+            result["garmin_prefix"] = self.garmin_prefix
 
         if self.token:
             result["token"] = {
@@ -92,6 +100,8 @@ class UserModel:
             username=data.get("username", ""),
             password=data.get("password", ""),
             model=data.get("model", "yunmai.scales.ms103"),
+            xiaomi_prefix=data.get("xiaomi_prefix"),
+            garmin_prefix=data.get("garmin_prefix"),
             token=token,
             garmin=garmin,
             created_at=data.get("created_at"),

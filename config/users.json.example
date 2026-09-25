@@ -1,17 +1,29 @@
 {
     "users": [
         {
+            // 脱敏标识（可选）：用于小米侧输出文件名和日志，不填则用 username
+            // 效果：data/body_data_my_scale.json, data/garmin-fit/body_my_scale_*.fit
+            "xiaomi_prefix": "my_scale",
+            // 小米账号（手机号/邮箱），用于登录认证
             "username": "your_xiaomi_username",
             "password": "your_xiaomi_password",
+            // 小米体脂秤设备型号
             "model": "yunmai.scales.ms103",
+            // 小米 Token（首次登录后自动填充，无需手动填写）
             "token": {
                 "userId": "",
                 "passToken": "",
                 "ssecurity": ""
             },
+            // Garmin 账号配置
+            // 脱敏标识（可选）：用于佳明侧会话目录和日志，不填则用 garmin.email
+            // 效果：data/.garth/my_garmin/
+            "garmin_prefix": "my_garmin",
+            
             "garmin": {
                 "email": "your_garmin_email",
                 "password": "your_garmin_password",
+                // 佳明服务器区域：CN=中国区, COM=国际区
                 "domain": "CN"
             }
         }

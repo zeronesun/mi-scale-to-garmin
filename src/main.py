@@ -141,7 +141,12 @@ def main():
         if not username:
             continue
 
-        logger.info(f"Processing user: {username}")
+        # 脱敏标识：有前缀用前缀，无则回退到 username / garmin.email
+        xiaomi_prefix = user.get("xiaomi_prefix") or username
+        garmin_email = garmin_config.get("email") if garmin_config else ""
+        garmin_prefix = user.get("garmin_prefix") or garmin_email or username
+
+        logger.info(f"Processing user: {xiaomi_prefix}")
 
         client = XiaomiClient(username=username)
 
@@ -212,7 +217,7 @@ def main():
                     display_weight_data(weights, limit=args.limit)
 
                     # Save to JSON file
-                    output_file = f"data/weight_data_{username}.json"
+                    output_file = f"data/body_data_{xiaomi_prefix}.json"
                     output_path = Path(output_file)
                     output_path.parent.mkdir(parents=True, exist_ok=True)
                     with open(output_file, 'w', encoding='utf-8') as f:
@@ -272,7 +277,7 @@ def main():
                         for idx, chunk in enumerate(weight_chunks, 1):
                             # Generate filename with chunk number
                             chunk_filename = fit_output_dir / \
-                                f"weight_{username}_{timestamp}_{idx}.fit"
+                                f"body_{xiaomi_prefix}_{timestamp}_{idx}.fit"
 
                             logger.info(
                                 f"处理第 {idx}/{total_chunks} 批: {len(chunk)} 条数据")
@@ -296,7 +301,8 @@ def main():
                                             email=garmin_config["email"],
                                             password=garmin_config["password"],
                                             auth_domain=garmin_config.get(
-                                                "domain", "CN")
+                                                "domain", "CN"),
+                                            session_name=garmin_prefix
                                         )
 
                                         if not g_client.login():
@@ -305,7 +311,7 @@ def main():
                                             g_client = None
                                     else:
                                         logger.warning(
-                                            f"⚠️ Garmin credentials missing for {username}. Skipping sync.")
+                                            f"⚠️ Garmin credentials missing for {xiaomi_prefix}. Skipping sync.")
                                         g_client = None
 
                                 # Upload if client is available
@@ -337,7 +343,7 @@ def main():
                         # Print upload summary
                         if args.sync and total_chunks > 0:
                             logger.info("=" * 80)
-                            logger.info(f"📊 上传汇总 - {username}")
+                            logger.info(f"📊 上传汇总 - {xiaomi_prefix}")
                             logger.info(f"  总批次数: {total_chunks}")
                             logger.info(
                                 f"  ✅ 成功: {upload_results['success']}")
@@ -358,11 +364,11 @@ def main():
                     logger.warning("No weight data found")
 
             except Exception as e:
-                logger.error(f"Failed to process data for {username}: {e}")
+                logger.error(f"Failed to process data for {xiaomi_prefix}: {e}")
                 logger.exception("Detailed error:")
         else:
             logger.warning(
-                f"No valid token for {username}. Please run the login tool to generate a token.")
+                f"No valid token for {xiaomi_prefix}. Please run the login tool to generate a token.")
             logger.info("Run: python src/xiaomi/login.py --config users.json")
         logger.info("Sleep 5 seconds")
         time.sleep( 5 )
