@@ -71,7 +71,16 @@ class XiaomiPage(QWizardPage):
         device_layout.addWidget(device_label)
         device_layout.addWidget(self.device_combo)
         layout.addLayout(device_layout)
-
+        # 脱敏前缀输入（可选）
+        prefix_layout = QHBoxLayout()
+        prefix_label = QLabel("脱敏前缀:")
+        prefix_label.setMinimumWidth(120)
+        self.prefix_field = QLineEdit()
+        self.prefix_field.setPlaceholderText("可选，默认 xiaomi（用于文件名/日志，不填则用账号哈希）")
+        self.prefix_field.setMinimumHeight(35)
+        prefix_layout.addWidget(prefix_label)
+        prefix_layout.addWidget(self.prefix_field)
+        layout.addLayout(prefix_layout)
         # 提示信息
         hint_label = QLabel(
             "提示: 密码仅用于本次登录验证，不会保存。\n"
@@ -88,12 +97,13 @@ class XiaomiPage(QWizardPage):
         self.registerField("xiaomi_username*", self.username_field)
         self.registerField("xiaomi_password*", self.password_field)
         self.registerField("xiaomi_device", self.device_combo, "currentData")
+        self.registerField("xiaomi_prefix", self.prefix_field)
 
         # 连接输入验证信号,实时更新"下一步"按钮状态
         self.username_field.textChanged.connect(self.completeChanged)
         self.password_field.textChanged.connect(self.completeChanged)
 
-    def _save_xiaomi_data(self, username: str, password: str, model: str, token_data: Dict[str, str]):
+    def _save_xiaomi_data(self, username: str, password: str, model: str, token_data: Dict[str, str], prefix: str = ""):
         """
         保存小米账户数据到向导
 
@@ -102,12 +112,14 @@ class XiaomiPage(QWizardPage):
             password: 密码
             model: 设备型号
             token_data: token 数据字典
+            prefix: 脱敏前缀（可选，空则回退账号哈希）
         """
         self.wizard().xiaomi_data = {
             "username": username,
             "password": password,
             "model": model,
-            "token": token_data
+            "token": token_data,
+            "xiaomi_prefix": prefix
         }
 
     def validatePage(self) -> bool:
@@ -115,6 +127,7 @@ class XiaomiPage(QWizardPage):
         username = self.username_field.text().strip()
         password = self.password_field.text().strip()
         model = self.device_combo.currentData()
+        prefix = self.prefix_field.text().strip()
 
         if not username or not password:
             return False
@@ -133,7 +146,7 @@ class XiaomiPage(QWizardPage):
             if result.get("ok"):
                 # 登录成功,提取 token 数据并保存
                 token_data = self._extract_token_data(result, micloud_sync)
-                self._save_xiaomi_data(username, password, model, token_data)
+                self._save_xiaomi_data(username, password, model, token_data, prefix)
                 return True
 
             # 处理验证码
@@ -141,7 +154,7 @@ class XiaomiPage(QWizardPage):
                 captcha_result = self._handle_captcha(captcha_image, micloud_sync)
                 if captcha_result["success"]:
                     token_data = captcha_result["token"]
-                    self._save_xiaomi_data(username, password, model, token_data)
+                    self._save_xiaomi_data(username, password, model, token_data, prefix)
                     return True
                 else:
                     # 显示错误信息并阻止继续
@@ -158,7 +171,7 @@ class XiaomiPage(QWizardPage):
                 mfa_result = self._handle_mfa(verify_info, micloud_sync)
                 if mfa_result["success"]:
                     token_data = mfa_result["token"]
-                    self._save_xiaomi_data(username, password, model, token_data)
+                    self._save_xiaomi_data(username, password, model, token_data, prefix)
                     return True
                 else:
                     # 显示错误信息并阻止继续
@@ -407,6 +420,17 @@ class GarminPage(QWizardPage):
         domain_group.setLayout(domain_layout)
         layout.addWidget(domain_group)
 
+        # 脱敏前缀输入（可选）
+        prefix_layout = QHBoxLayout()
+        prefix_label = QLabel("脱敏前缀:")
+        prefix_label.setMinimumWidth(120)
+        self.prefix_field = QLineEdit()
+        self.prefix_field.setPlaceholderText("可选，默认 garmin（用于会话目录/日志，不填则用账号哈希）")
+        self.prefix_field.setMinimumHeight(35)
+        prefix_layout.addWidget(prefix_label)
+        prefix_layout.addWidget(self.prefix_field)
+        layout.addLayout(prefix_layout)
+
         # 域说明
         domain_hint = QLabel(
             "说明: 中国区用户请选择 CN,海外用户请选择 COM。\n"
@@ -431,6 +455,7 @@ class GarminPage(QWizardPage):
         # 注册字段以供向导使用
         self.registerField("garmin_email*", self.email_field)
         self.registerField("garmin_password*", self.password_field)
+        self.registerField("garmin_prefix", self.prefix_field)
 
         # 连接输入验证信号,实时更新"下一步"按钮状态
         self.email_field.textChanged.connect(self.completeChanged)
@@ -441,6 +466,7 @@ class GarminPage(QWizardPage):
         email = self.email_field.text().strip()
         password = self.password_field.text().strip()
         domain = "CN" if self.cn_radio.isChecked() else "COM"
+        prefix = self.prefix_field.text().strip()
 
         if not email or not password:
             return False
@@ -449,7 +475,8 @@ class GarminPage(QWizardPage):
         self.wizard().garmin_data = {
             "email": email,
             "password": password,
-            "domain": domain
+            "domain": domain,
+            "garmin_prefix": prefix
         }
 
         return True

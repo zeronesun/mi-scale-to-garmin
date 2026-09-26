@@ -381,13 +381,15 @@ class MainWindow(QMainWindow):
                     filter=None
                 )
 
-                # 构建 UserModel
+                # 构建 UserModel（脱敏前缀可选，空则回退账号哈希）
                 user = UserModel(
                     username=user_data.get("username", ""),
                     password=user_data.get("password", ""),
                     model=user_data.get("model", "yunmai.scales.ms103"),
                     token=token_data,
                     garmin=garmin_config,
+                    xiaomi_prefix=user_data.get("xiaomi_prefix") or None,
+                    garmin_prefix=garmin_dict.get("garmin_prefix") or None,
                     created_at=None,
                     last_sync=None
                 )
