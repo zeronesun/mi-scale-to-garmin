@@ -219,6 +219,78 @@ class MfaDialog(QDialog):
         super().accept()
 
 
+class PasswordDialog(QDialog):
+    """密码输入对话框（决策 4：密码仅内存中使用，认证后丢弃）"""
+
+    def __init__(self, account: str, service: str = "小米", parent=None):
+        """
+        Args:
+            account: 账号（手机号/邮箱，用于提示）
+            service: 服务名（小米/佳明）
+            parent: 父窗口
+        """
+        super().__init__(parent)
+        self.password_value = None
+
+        self.setWindowTitle(f"{service}账号密码")
+        self.setModal(True)
+        self.setMinimumSize(400, 180)
+        self.setMaximumSize(400, 180)
+
+        layout = QVBoxLayout()
+        layout.setSpacing(15)
+
+        title_label = QLabel(f"{service}会话已失效，需要重新认证")
+        title_label.setStyleSheet("font-size: 16px; font-weight: bold;")
+        title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(title_label)
+
+        info_label = QLabel(f"账号: {account}")
+        info_label.setStyleSheet("color: #666; font-size: 12px;")
+        info_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(info_label)
+
+        input_layout = QHBoxLayout()
+        input_label = QLabel("密码:")
+        self.input_field = QLineEdit()
+        self.input_field.setPlaceholderText("请输入密码")
+        self.input_field.setMinimumHeight(35)
+        self.input_field.setEchoMode(QLineEdit.EchoMode.Password)  # 隐藏输入
+        input_layout.addWidget(input_label)
+        input_layout.addWidget(self.input_field)
+        layout.addLayout(input_layout)
+
+        button_layout = QHBoxLayout()
+        button_layout.addStretch()
+        cancel_button = QPushButton("取消")
+        cancel_button.setMinimumWidth(100)
+        cancel_button.setMinimumHeight(35)
+        cancel_button.clicked.connect(self.reject)
+        ok_button = QPushButton("确定")
+        ok_button.setMinimumWidth(100)
+        ok_button.setMinimumHeight(35)
+        ok_button.setDefault(True)
+        ok_button.clicked.connect(self.accept)
+        button_layout.addWidget(cancel_button)
+        button_layout.addWidget(ok_button)
+        layout.addLayout(button_layout)
+
+        self.setLayout(layout)
+        self.input_field.setFocus()
+
+    def get_password(self) -> str:
+        return self.password_value if self.password_value else ""
+
+    def accept(self):
+        pw = self.input_field.text()
+        if not pw:
+            QMessageBox.warning(self, "提示", "请输入密码")
+            self.input_field.setFocus()
+            return
+        self.password_value = pw
+        super().accept()
+
+
 class GarminMfaDialog(QDialog):
     """Garmin 两步验证码(MFA)输入对话框"""
 

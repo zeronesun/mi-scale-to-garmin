@@ -431,33 +431,55 @@ def main():
         print(f"❌ No users found in {args.config}")
         print("Please add users to the configuration file first.")
         return
+
+    # 与 main.py 一致：身份字段缺失/占位符时引导式补齐（写回 users.json）
+    from core.bootstrap import ensure_identity, NonInteractiveError
+    try:
+        users = [ensure_identity(u, config_mgr) for u in users]
+    except NonInteractiveError as e:
+        print(f"❌ {e}")
+        return
     
     for user in users:
         username = user.get("username")
-        password = user.get("password")
-        
-        if not username or not password:
+        if not username:
             print(f"⚠️  Skipping incomplete user profile")
             continue
-        
+
+        # 决策 4：密码仅终端 getpass 输入（users.json 不再存密码），认证后丢弃
+        import getpass
+        password = getpass.getpass(f"小米密码（{username}）: ")
+        if not password:
+            print(f"⚠️  未输入密码，跳过 {username}")
+            continue
+
+        # 脱敏前缀：配置了用配置，未配置回退到账号短哈希（B）
+        from core.account import resolve_prefix
+        xiaomi_prefix = resolve_prefix(user.get("xiaomi_prefix"), username)
+
         login = XiaomiLogin()
-        
+
         try:
             token_data = login.perform_login(username, password)
-            
+
             if token_data:
-                print("\n💾 Saving token to config...")
-                config_mgr.update_user_token(username, token_data)
-                print(f"✅ Token saved for {username}")
+                # 决策 2：token 存独立会话文件（含账号哈希绑定 A），不写 users.json
+                from core.session_store import save_xiaomi_auth
+                print("\n💾 Saving token to session file...")
+                save_xiaomi_auth(xiaomi_prefix, token_data,
+                                    xiaomi_account=username)
+                print(f"✅ Token saved for {xiaomi_prefix}")
             else:
                 print(f"❌ Login failed for {username}")
-        
+
         except Exception as e:
             print(f"❌ Error during login: {e}")
             _LOGGER.exception("Login error")
-        
+
         finally:
             login.close()
+            # 决策 4：密码仅内存中使用，认证后立即丢弃
+            password = None
 
 
 if __name__ == "__main__":

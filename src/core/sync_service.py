@@ -96,9 +96,11 @@ class SyncOrchestrator:
                 )
                 return
 
-            # 脱敏标识：有前缀用前缀，无则回退到 username / garmin.email
-            xiaomi_prefix = user.xiaomi_prefix or user.username
-            garmin_prefix = user.garmin_prefix or (
+            # 脱敏标识：有前缀用前缀，无则回退到账号短哈希（B，不再用明文账号）
+            from core.account import resolve_prefix
+            xiaomi_prefix = resolve_prefix(user.xiaomi_prefix, user.username)
+            garmin_prefix = resolve_prefix(
+                user.garmin_prefix,
                 user.garmin.email if user.garmin else user.username)
 
             # 阶段 1: 登录小米并获取数据
@@ -113,12 +115,35 @@ class SyncOrchestrator:
 
             xiaomi_client = XiaomiClient(username=user.username)
 
-            # 检查是否有可用 token
-            has_valid_token = (
-                user.token and
-                user.token.userId and
-                user.token.passToken
-            )
+            # 决策 2：token 从独立会话文件读取（含账号哈希绑定校验 A）
+            from core.session_store import (load_xiaomi_auth,
+                                            save_xiaomi_auth,
+                                            SessionAccountMismatchError)
+            try:
+                session_token = load_xiaomi_auth(
+                    xiaomi_prefix, xiaomi_account=user.username,
+                    custom_base=getattr(self.config_mgr, 'custom_data_dir', None))
+            except SessionAccountMismatchError as e:
+                yield SyncProgress(
+                    stage="error", current=0, total=100,
+                    message=f"❌ 小米会话文件账号绑定不匹配: {e}",
+                    timestamp=datetime.datetime.now().strftime("%H:%M:%S"),
+                    username=username)
+                return
+
+            # 兼容：旧版 users.json 内嵌 token 优先迁移到会话文件
+            if not session_token and user.token and user.token.userId and user.token.passToken:
+                from core.session_store import migrate_token_from_users_json
+                migrate_token_from_users_json(
+                    self.config_mgr, user.to_dict(), xiaomi_prefix,
+                    custom_base=getattr(self.config_mgr, 'custom_data_dir', None))
+                session_token = load_xiaomi_auth(
+                    xiaomi_prefix, xiaomi_account=user.username,
+                    custom_base=getattr(self.config_mgr, 'custom_data_dir', None))
+
+            has_valid_token = bool(
+                session_token and session_token.get("userId")
+                and session_token.get("passToken"))
 
             if not has_valid_token:
                 # 尝试用户名密码登录
@@ -161,10 +186,12 @@ class SyncOrchestrator:
                     )
                     return
 
-                # 保存 token
+                # 决策 2：保存 token 到独立会话文件（不再写 users.json）
                 token_data = login_result["token"]
-                self.config_mgr.update_user_token(username, token_data)
-                logger.info(f"用户 {xiaomi_prefix} 登录成功,Token 已保存")
+                save_xiaomi_auth(xiaomi_prefix, token_data,
+                                    xiaomi_account=user.username,
+                                    custom_base=getattr(self.config_mgr, 'custom_data_dir', None))
+                logger.info(f"用户 {xiaomi_prefix} 登录成功,Token 已保存到会话文件")
 
                 # 设置凭证到 client
                 xiaomi_client.set_credentials(
@@ -177,18 +204,20 @@ class SyncOrchestrator:
                 try:
                     new_token_data = xiaomi_client.login_from_token()
                     if new_token_data:
-                        self.config_mgr.update_user_token(username, new_token_data)
+                        save_xiaomi_auth(xiaomi_prefix, new_token_data,
+                                            xiaomi_account=user.username,
+                                            custom_base=getattr(self.config_mgr, 'custom_data_dir', None))
                         logger.info(f"用户 {xiaomi_prefix} 的 Token 已刷新")
                 except Exception as e:
                     # Token 刷新失败,但继续使用刚获取的 token
                     logger.warning(f"Token 刷新失败,但继续使用: {e}")
 
             else:
-                # 使用现有 token
+                # 使用会话文件中的现有 token
                 xiaomi_client.set_credentials(
-                    user_id=user.token.userId,
-                    ssecurity_encoded=user.token.ssecurity,
-                    pass_token=user.token.passToken
+                    user_id=session_token["userId"],
+                    ssecurity_encoded=session_token.get("ssecurity"),
+                    pass_token=session_token["passToken"]
                 )
 
                 try:
@@ -204,7 +233,9 @@ class SyncOrchestrator:
 
                     new_token_data = xiaomi_client.login_from_token()
                     if new_token_data:
-                        self.config_mgr.update_user_token(username, new_token_data)
+                        save_xiaomi_auth(xiaomi_prefix, new_token_data,
+                                            xiaomi_account=user.username,
+                                            custom_base=getattr(self.config_mgr, 'custom_data_dir', None))
                         logger.info(f"用户 {xiaomi_prefix} 的 Token 已刷新")
 
                 except Exception as e:
@@ -329,9 +360,22 @@ class SyncOrchestrator:
                 custom_base=getattr(self.config_mgr, 'custom_data_dir', None)
             )
 
+            # 决策 4：佳明密码惰性获取（仅会话失效时触发）
+            # GUI 模式走 input_callback 弹窗，CLI 模式走 getpass
+            def _garmin_password_provider():
+                if input_callback:
+                    pw_result = input_callback({
+                        "action": "garmin_password",
+                        "username": username,
+                        "email": user.garmin.email
+                    })
+                    return pw_result.get("password", "")
+                from core.bootstrap import prompt_password
+                return prompt_password("佳明密码")
+
             garmin_client = GarminClient(
                 email=user.garmin.email,
-                password=user.garmin.password,
+                password_provider=_garmin_password_provider,
                 auth_domain=user.garmin.domain,
                 session_dir=str(session_dir),  # 关键：传入可写路径
                 session_name=garmin_prefix

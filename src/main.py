@@ -24,6 +24,23 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# users.json 默认模板（无密：无 password/token 字段，空字段由引导式初始化补齐）
+# prefix 带默认值（xiaomi/garmin），恢复后不再询问前缀，只问账号/邮箱
+DEFAULT_TEMPLATE = {
+    "users": [
+        {
+            "xiaomi_prefix": "xiaomi",
+            "username": "",
+            "model": "yunmai.scales.ms103",
+            "garmin_prefix": "garmin",
+            "garmin": {
+                "email": "",
+                "domain": "CN"
+            }
+        }
+    ]
+}
+
 
 def display_weight_data(weights, limit=10):
     """Display weight data in a formatted way"""
@@ -93,11 +110,19 @@ def main():
                         help="Upload weight data to Garmin Connect")
     parser.add_argument("--output-dir", default="data/garmin-fit",
                         help="Directory for generated FIT files")
+    parser.add_argument("--non-interactive", action="store_true",
+                        help="非交互模式：需要输入时直接报错退出（计划任务/CI 用）")
     args = parser.parse_args()
 
     # If --sync is requested, we must also have --fit
     if args.sync:
         args.fit = True
+
+    # 非交互保护：--non-interactive 或 stdin 非 TTY 时，需要输入直接报错退出
+    from core.bootstrap import (set_interactive_override, ensure_identity,
+                                prompt_password, NonInteractiveError)
+    if args.non_interactive:
+        set_interactive_override(False)
 
     config_mgr = ConfigManager(args.config)
     users = config_mgr.get_users()
@@ -106,47 +131,69 @@ def main():
         logger.warning(
             f"No users found in {args.config}. Please add users to the configuration file.")
 
-        # Create a template if it doesn't exist/empty
+        # Create a template if it doesn't exist/empty（无密模板：无 password/token 字段，
+        # 空字段由启动时的引导式初始化补齐）
         if not users:
-            template = {
-                "users": [
-                    {
-                        "username": "your_xiaomi_username",
-                        "password": "your_xiaomi_password",
-                        "model": "yunmai.scales.ms103",
-                        "token": {
-                            "userId": "",
-                            "passToken": "",
-                            "ssecurity": ""
-                        },
-                        "garmin": {
-                            "email": "your_garmin_email",
-                            "password": "your_garmin_password",
-                            "domain": "CN"
-                        }
-                    }
-                ]
-            }
             with open(args.config, 'w') as f:
-                json.dump(template, f, indent=4)
-            logger.info(f"Created template {args.config}")
+                json.dump(DEFAULT_TEMPLATE, f, indent=4)
+            logger.info(f"Created template {args.config}（空字段将在下次启动时引导式补齐）")
             return
 
+    from core.session_store import (load_xiaomi_auth, save_xiaomi_auth,
+                                    migrate_token_from_users_json,
+                                    SessionAccountMismatchError)
+    from core.account import resolve_prefix
+
     for user in users:
-        username = user.get("username")
-        token = user.get("token")
         model = user.get("model", "yunmai.scales.ms103")
         garmin_config = user.get("garmin")
 
-        if not username:
-            continue
+        # ② 身份字段完整性检查 + 引导式输入（只问空的，写回 users.json）
+        try:
+            user = ensure_identity(user, config_mgr)
+        except NonInteractiveError as e:
+            logger.error(str(e))
+            return
+        username = user["username"]
 
-        # 脱敏标识：有前缀用前缀，无则回退到 username / garmin.email
-        xiaomi_prefix = user.get("xiaomi_prefix") or username
+        # 脱敏标识：有前缀用前缀，无则回退到账号短哈希（B，不再用明文账号）
+        xiaomi_prefix = resolve_prefix(user.get("xiaomi_prefix"), username)
         garmin_email = garmin_config.get("email") if garmin_config else ""
-        garmin_prefix = user.get("garmin_prefix") or garmin_email or username
+        garmin_prefix = resolve_prefix(user.get("garmin_prefix"), garmin_email)
 
         logger.info(f"Processing user: {xiaomi_prefix}")
+
+        # 一次性迁移：旧版 users.json 内嵌 token → 独立会话文件
+        migrate_token_from_users_json(config_mgr, user, xiaomi_prefix)
+
+        # ③ 读取小米 token 会话文件（含账号哈希绑定校验 A）
+        try:
+            token = load_xiaomi_auth(xiaomi_prefix, xiaomi_account=username)
+        except SessionAccountMismatchError as e:
+            logger.error(str(e))
+            token = None
+
+        if not token:
+            # token 缺失 → 终端输入密码重新认证（非交互环境报错退出）
+            logger.warning(
+                f"小米 token 缺失/无效（{xiaomi_prefix}），需要输入密码重新认证")
+            try:
+                password = prompt_password("小米密码")
+            except NonInteractiveError as e:
+                logger.error(str(e))
+                return
+            from xiaomi.login import XiaomiLogin
+            login = XiaomiLogin()
+            try:
+                token = login.perform_login(username, password)
+            finally:
+                login.close()
+                password = None  # 决策 4：认证后丢弃
+            if not token:
+                logger.error(f"小米认证失败，跳过 {xiaomi_prefix}")
+                continue
+            save_xiaomi_auth(xiaomi_prefix, token, xiaomi_account=username)
+            logger.info(f"小米 token 已保存到会话文件（{xiaomi_prefix}）")
 
         client = XiaomiClient(username=username)
 
@@ -163,9 +210,10 @@ def main():
                 logger.info("Logging in with saved Xiaomi token...")
                 new_token_data = client.login_from_token()
 
-                # Update the token in config if changed
+                # token 滚动更新 → 写回独立会话文件（不再写 users.json）
                 if new_token_data:
-                    config_mgr.update_user_token(username, new_token_data)
+                    save_xiaomi_auth(xiaomi_prefix, new_token_data,
+                                        xiaomi_account=username)
                     logger.info("Xiaomi token refreshed and saved")
 
                 # Fetch weights - 双源合并：旧 API 优先（实时），新 API 按时间戳补充（Zeeplife 导入数据）
@@ -296,10 +344,19 @@ def main():
                             if args.sync:
                                 # Initialize Garmin client on first sync
                                 if 'g_client' not in locals():
-                                    if garmin_config and garmin_config.get("email") and garmin_config.get("password"):
+                                    if garmin_config and garmin_config.get("email"):
+                                        # 决策 4：密码不再从 users.json 读取；
+                                        # 惰性回调：仅会话失效时才 getpass 输入（非交互环境报错）
+                                        def _garmin_password_prompt():
+                                            try:
+                                                return prompt_password("佳明密码")
+                                            except NonInteractiveError as e:
+                                                logger.error(str(e))
+                                                return ""
+
                                         g_client = GarminClient(
                                             email=garmin_config["email"],
-                                            password=garmin_config["password"],
+                                            password_provider=_garmin_password_prompt,
                                             auth_domain=garmin_config.get(
                                                 "domain", "CN"),
                                             session_name=garmin_prefix
@@ -372,6 +429,40 @@ def main():
             logger.info("Run: python src/xiaomi/login.py --config users.json")
         logger.info("Sleep 5 seconds")
         time.sleep( 5 )
+
+    # 结束后询问：是否将 users.json 恢复为默认模板（用于反复测试引导式初始化）
+    _offer_reset_to_default(args.config)
+
+
+def _offer_reset_to_default(config_path):
+    """询问是否把 users.json 恢复为默认模板；恢复前先把当前文件备份到 .trash/"""
+    from core.bootstrap import is_interactive
+    if not is_interactive():
+        return
+    try:
+        answer = input("\n是否将 users.json 恢复为默认模板（清空账号/邮箱）？[y/N]: ").strip().lower()
+    except (EOFError, KeyboardInterrupt):
+        return
+    if answer not in ("y", "yes"):
+        return
+
+    config_file = Path(config_path)
+    if not config_file.exists():
+        logger.warning(f"配置文件不存在: {config_path}，无需恢复")
+        return
+
+    # 备份当前文件到 .trash/（只移动不删除的纪律）
+    trash_dir = config_file.parent / ".trash"
+    trash_dir.mkdir(exist_ok=True)
+    ts = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+    backup = trash_dir / f"users.json.bak-{ts}"
+    config_file.replace(backup)
+    logger.info(f"当前 users.json 已备份到 {backup}")
+
+    with open(config_file, 'w') as f:
+        json.dump(DEFAULT_TEMPLATE, f, indent=4)
+    logger.info(f"已恢复为默认模板: {config_path}（下次启动将引导式补齐空字段）")
+
 
 if __name__ == "__main__":
     main()

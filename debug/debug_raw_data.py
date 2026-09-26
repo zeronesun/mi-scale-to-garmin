@@ -11,6 +11,8 @@ sys.path.append(str(Path(__file__).parent.parent / "src"))
 
 from xiaomi.client import XiaomiClient
 from xiaomi.config import ConfigManager
+from core.session_store import load_xiaomi_auth
+from core.account import resolve_prefix
 
 
 def main():
@@ -23,9 +25,12 @@ def main():
 
     for user in users:
         username = user.get("username")
-        token = user.get("token")
         model = user.get("model", "yunmai.scales.ms103")
-        xiaomi_prefix = user.get("xiaomi_prefix") or username
+        xiaomi_prefix = resolve_prefix(user.get("xiaomi_prefix"), username)
+
+        # 认证优化后 token 存独立会话文件（兼容旧版 users.json 内嵌 token）
+        token = load_xiaomi_auth(xiaomi_prefix, xiaomi_account=username) \
+            or user.get("token")
 
         if not username or not token or not token.get("userId"):
             print(f"跳过 {xiaomi_prefix}: 无有效 token")

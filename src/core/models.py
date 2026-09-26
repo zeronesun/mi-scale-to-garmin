@@ -40,9 +40,11 @@ class UserModel:
         """转换为字典"""
         result = {
             "username": self.username,
-            "password": self.password,
             "model": self.model,
         }
+        # 决策 1：users.json 无密化——空密码不写入（避免残留空键）
+        if self.password:
+            result["password"] = self.password
 
         if self.xiaomi_prefix:
             result["xiaomi_prefix"] = self.xiaomi_prefix
@@ -58,11 +60,14 @@ class UserModel:
             }
 
         if self.garmin:
-            result["garmin"] = {
+            garmin_dict = {
                 "email": self.garmin.email,
-                "password": self.garmin.password,
                 "domain": self.garmin.domain,
             }
+            # 决策 1：空密码不写入
+            if self.garmin.password:
+                garmin_dict["password"] = self.garmin.password
+            result["garmin"] = garmin_dict
             if self.garmin.filter:
                 result["garmin"]["filter"] = self.garmin.filter
 
