@@ -75,7 +75,7 @@ def build_gui():
 
     print()
     print("=" * 60)
-    print("✅ GUI 版本打包完成！")
+    print("[OK] GUI 版本打包完成！")
     print("输出文件: dist/mi-scale-to-garmin")
     print("=" * 60)
 
@@ -136,7 +136,7 @@ def build_cli():
 
     print()
     print("=" * 60)
-    print("✅ CLI 版本打包完成！")
+    print("[OK] CLI 版本打包完成！")
     print("输出文件: dist/mi-scale-to-garmin-cli")
     print("=" * 60)
 
@@ -152,9 +152,9 @@ def build_all():
     # 检查 PyInstaller
     try:
         import PyInstaller
-        print(f"✅ PyInstaller 版本: {PyInstaller.__version__}")
+        print(f"[OK] PyInstaller 版本: {PyInstaller.__version__}")
     except ImportError:
-        print("❌ PyInstaller 未安装")
+        print("[ERR] PyInstaller 未安装")
         print()
         print("请先安装 PyInstaller:")
         print("  pip install pyinstaller")
@@ -183,15 +183,34 @@ def build_all():
         build_cli()
         print()
         print("=" * 60)
-        print("✅ 所有版本打包完成！")
+        print("[OK] 所有版本打包完成！")
         print("  - GUI: dist/mi-scale-to-garmin")
         print("  - CLI: dist/mi-scale-to-garmin-cli")
         print("=" * 60)
     elif choice == '0':
         print("退出")
     else:
-        print("❌ 无效选项")
+        print("[ERR] 无效选项")
+
+
+def main():
+    """入口：支持命令行参数（gui|cli|all），无参数时进入交互菜单"""
+    if len(sys.argv) > 1:
+        target = sys.argv[1].strip().lower()
+        if target == 'gui':
+            build_gui()
+        elif target == 'cli':
+            build_cli()
+        elif target == 'all':
+            build_gui()
+            print()
+            build_cli()
+        else:
+            print(f"[ERR] 无效选项: {sys.argv[1]}（可用: gui | cli | all）")
+            sys.exit(1)
+    else:
+        build_all()
 
 
 if __name__ == '__main__':
-    build_all()
+    main()

@@ -64,6 +64,6 @@ data/*
 /release/*
 
 dist/*
-mi-scale-to-garmin.spec/*
-mi-scale-to-garmin-cli.spec/*
+*.spec
 CLAUDE.md
+AGENTS.md

@@ -1,0 +1,5 @@
+# Build toolchain (only needed to package exe, not to run the app)
+# Usage: pip install -r requirements-build.txt && python build.py [gui|cli|all]
+# NOTE: keep this file ASCII-only (pip reads it with the system locale encoding, e.g. GBK on zh-CN Windows)
+pyinstaller==6.22.3
+pyinstaller-hooks-contrib==2026.7
