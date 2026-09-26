@@ -2,6 +2,7 @@
 同步服务编排器
 提供统一的同步接口，供 GUI 和 CLI 调用
 """
+import json
 import logging
 import datetime
 from typing import Generator, Optional, List, Dict, Any
@@ -16,10 +17,10 @@ logger = logging.getLogger(__name__)
 import sys
 sys.path.append(str(Path(__file__).parent.parent))
 
-from xiaomi.client import XiaomiClient, unmarshal_fitness_data
+from xiaomi.client import XiaomiClient, fetch_merged_weights
 from garmin.client import GarminClient
 from garmin.fit_generator import create_weight_fit_file
-from utils.paths import get_session_dir, get_output_dir
+from utils.paths import get_app_data_dir, get_session_dir, get_output_dir
 
 
 class SyncOrchestrator:
@@ -254,27 +255,23 @@ class SyncOrchestrator:
                 stage="fetching",
                 current=30,
                 total=100,
-                message="📊 正在获取体重数据...",
+                message="📊 正在获取小米体脂秤数据...",
                 timestamp=datetime.datetime.now().strftime("%H:%M:%S"),
                 username=username
             )
 
             weights = []
             try:
-                # 尝试新 API
-                weights = xiaomi_client.get_model_weights(user.model)
-
-                if not weights:
-                    # 回退到旧 API
-                    fitness_data = xiaomi_client.get_fitness_data_by_time(key="weight")
-                    weights = unmarshal_fitness_data(fitness_data)
+                # 双源合并：旧 API 优先（实时），新 API 按时间戳补充（Zeeplife 导入数据）
+                weights, legacy_count, supplement_count = fetch_merged_weights(
+                    xiaomi_client, user.model)
 
                 if not weights:
                     yield SyncProgress(
                         stage="error",
                         current=0,
                         total=100,
-                        message="❌ 未获取到任何体重数据",
+                        message="❌ 未获取到任何小米体脂秤数据",
                         timestamp=datetime.datetime.now().strftime("%H:%M:%S"),
                         username=username
                     )
@@ -295,11 +292,23 @@ class SyncOrchestrator:
                 stage="fetching",
                 current=40,
                 total=100,
-                message=f"✅ 成功获取 {len(weights)} 条体重数据",
+                message=f"✅ 成功获取 {len(weights)} 条小米体脂秤数据（旧 API {legacy_count} + 新 API 补充 {supplement_count}）",
                 timestamp=datetime.datetime.now().strftime("%H:%M:%S"),
                 username=username,
                 details={"total_weights": len(weights)}
             )
+
+            # 落盘小米体脂秤数据（与 CLI 一致：body_data_<prefix>.json，尊重自定义数据目录）
+            try:
+                custom_base = getattr(self.config_mgr, 'custom_data_dir', None)
+                data_dir = Path(custom_base) if custom_base else get_app_data_dir()
+                body_data_path = data_dir / f"body_data_{xiaomi_prefix}.json"
+                body_data_path.parent.mkdir(parents=True, exist_ok=True)
+                with open(body_data_path, 'w', encoding='utf-8') as f:
+                    json.dump(weights, f, indent=2, ensure_ascii=False)
+                logger.info(f"小米体脂秤数据已保存: {body_data_path}")
+            except Exception as e:
+                logger.warning(f"小米体脂秤数据落盘失败（不影响同步）: {e}")
 
             # 检查是否有 Garmin 配置
             if not user.garmin or not user.garmin.email:

@@ -221,6 +221,70 @@ def merge_weight_records(legacy_weights, new_weights):
     return result, supplement_count
 
 
+def fetch_merged_weights(client, model):
+    """
+    双源获取 + 合并体重数据（CLI/GUI 共用）。
+
+    - 旧 API（主数据源，设备直传，实时）：get_model_weights
+    - 新 API（补充数据源，聚合库有延迟，但含 Zeeplife 导入数据）：get_fitness_data_by_time
+    - 同一时间戳旧 API 优先，新 API 独有的记录补充进来
+    - 每条记录标记 DataSource（legacy / new_api）方便 debug
+
+    单个数据源失败只告警不中断（另一源仍可用）。
+
+    Args:
+        client: 已登录的 XiaomiClient 实例
+        model: 设备型号（旧 API 需要）
+
+    Returns:
+        (weights, legacy_count, supplement_count):
+        合并后的记录列表（时间戳降序）、旧 API 条数、新 API 补充条数
+    """
+    legacy_weights = []
+    new_weights = []
+
+    # 1. 旧 API（主数据源，设备直传，实时）
+    _LOGGER.info(f"Fetching weight data using legacy API, model: {model}...")
+    try:
+        legacy_weights = client.get_model_weights(model)
+        _LOGGER.info(
+            f"Legacy API returned {len(legacy_weights)} weight records")
+    except Exception as e:
+        _LOGGER.warning(f"Failed to fetch data with legacy API: {e}")
+
+    # 2. 新 API（补充数据源，聚合库有延迟，但含 Zeeplife 导入数据）
+    _LOGGER.info("Fetching weight data using new API...")
+    try:
+        fitness_data = client.get_fitness_data_by_time(key="weight")
+        new_weights = unmarshal_fitness_data(fitness_data)
+        _LOGGER.info(
+            f"New API returned {len(new_weights)} weight records")
+    except Exception as e:
+        _LOGGER.warning(f"Failed to fetch data with new API: {e}")
+
+    # 3. 合并：同一时间戳旧 API 优先，新 API 独有的记录补充进来
+    weights, supplement_count = merge_weight_records(
+        legacy_weights, new_weights)
+    _LOGGER.info(
+        f"Merged: {len(weights)} total "
+        f"(legacy {len(legacy_weights)} + new API supplement {supplement_count})")
+
+    # 4. 标记每条记录的数据来源（方便 debug）
+    legacy_ts = {int(w.get('Timestamp', 0)) for w in legacy_weights}
+    for w in weights:
+        if int(w.get('Timestamp', 0)) in legacy_ts:
+            w['DataSource'] = 'legacy'
+        else:
+            w['DataSource'] = 'new_api'
+    _LOGGER.info(
+        "Per-record source: " +
+        ", ".join(f"{w.get('Date', '?')}[{w.get('DataSource')}]"
+                  for w in weights[:10])
+        + (f" ... (+{len(weights) - 10} more)" if len(weights) > 10 else ""))
+
+    return weights, len(legacy_weights), supplement_count
+
+
 class XiaomiClient:
     def __init__(self, username=None, password=None, region="cn"):
         self.username = username

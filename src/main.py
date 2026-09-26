@@ -1,8 +1,7 @@
 
 from garmin.client import GarminClient
 from garmin.fit_generator import create_weight_fit_file
-from xiaomi.client import (XiaomiClient, unmarshal_fitness_data,
-                           merge_weight_records)
+from xiaomi.client import XiaomiClient, fetch_merged_weights
 from xiaomi.config import ConfigManager
 from utils.paths import get_app_data_dir
 import argparse
@@ -218,48 +217,8 @@ def main():
                     logger.info("Xiaomi token refreshed and saved")
 
                 # Fetch weights - 双源合并：旧 API 优先（实时），新 API 按时间戳补充（Zeeplife 导入数据）
-                legacy_weights = []
-                new_weights = []
-
-                # 1. 旧 API（主数据源，设备直传，实时）
-                logger.info(f"Fetching weight data using legacy API, model: {model}...")
-                try:
-                    legacy_weights = client.get_model_weights(model)
-                    logger.info(
-                        f"Legacy API returned {len(legacy_weights)} weight records")
-                except Exception as e:
-                    logger.warning(f"Failed to fetch data with legacy API: {e}")
-
-                # 2. 新 API（补充数据源，聚合库有延迟，但含 Zeeplife 导入数据）
-                logger.info("Fetching weight data using new API...")
-                try:
-                    fitness_data = client.get_fitness_data_by_time(
-                        key="weight")
-                    new_weights = unmarshal_fitness_data(fitness_data)
-                    logger.info(
-                        f"New API returned {len(new_weights)} weight records")
-                except Exception as e:
-                    logger.warning(f"Failed to fetch data with new API: {e}")
-
-                # 3. 合并：同一时间戳旧 API 优先，新 API 独有的记录补充进来
-                weights, supplement_count = merge_weight_records(
-                    legacy_weights, new_weights)
-                logger.info(
-                    f"Merged: {len(weights)} total "
-                    f"(legacy {len(legacy_weights)} + new API supplement {supplement_count})")
-
-                # 4. 标记每条记录的数据来源（方便 debug）
-                legacy_ts = {int(w.get('Timestamp', 0)) for w in legacy_weights}
-                for w in weights:
-                    if int(w.get('Timestamp', 0)) in legacy_ts:
-                        w['DataSource'] = 'legacy'
-                    else:
-                        w['DataSource'] = 'new_api'
-                logger.info(
-                    "Per-record source: " +
-                    ", ".join(f"{w.get('Date', '?')}[{w.get('DataSource')}]"
-                              for w in weights[:10])
-                    + (f" ... (+{len(weights) - 10} more)" if len(weights) > 10 else ""))
+                weights, legacy_count, supplement_count = fetch_merged_weights(
+                    client, model)
                 if weights:
                     logger.info(
                         f"Successfully retrieved {len(weights)} weight records")
