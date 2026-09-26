@@ -51,7 +51,7 @@ users-backup.json
 .trash/
 config/.trash/
 
-# Docker - sensitive config and data
+# 敏感运行数据（全局防线，非仅 Docker）：小米 token / 佳明会话 / 身体数据 / 验证码 / FIT 文件
 data/*
 
 # Claude
