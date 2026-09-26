@@ -165,9 +165,14 @@ def harden_file_permissions(path) -> bool:
         # Windows：icacls 移除继承，仅保留当前用户完全控制
         # 注意：必须用 (F) 而非 (R,W)——(R,W) 不含删除权限，会导致文件无法移动/删除
         username = os.environ.get("USERNAME", "")
+        kwargs = {}
+        if os.name == 'nt':
+            # 打包版（--windowed 无控制台）下 subprocess 默认会弹出黑色控制台窗口，
+            # CREATE_NO_WINDOW 抑制窗口创建，避免同步时闪窗
+            kwargs['creationflags'] = subprocess.CREATE_NO_WINDOW
         result = subprocess.run(
             ['icacls', str(p), '/inheritance:r', '/grant:r', f'{username}:(F)'],
-            capture_output=True, text=True, timeout=15
+            capture_output=True, text=True, timeout=15, **kwargs
         )
         return result.returncode == 0
     except Exception as e:
