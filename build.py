@@ -37,7 +37,7 @@ def build_gui():
     ]
 
     args = [
-        '--name=mi-scale-to-garmin',
+        '--name=mi-scale-to-garmin-gui',
         '--windowed',  # 无控制台窗口
         '--onedir',    # 打包成目录（启动更快）
         '--clean',     # 清理缓存
@@ -76,7 +76,7 @@ def build_gui():
     print()
     print("=" * 60)
     print("[OK] GUI 版本打包完成！")
-    print("输出文件: dist/mi-scale-to-garmin")
+    print("输出文件: dist/mi-scale-to-garmin-gui/mi-scale-to-garmin-gui.exe")
     print("=" * 60)
 
 
@@ -184,7 +184,7 @@ def build_all():
         print()
         print("=" * 60)
         print("[OK] 所有版本打包完成！")
-        print("  - GUI: dist/mi-scale-to-garmin")
+        print("  - GUI: dist/mi-scale-to-garmin-gui/mi-scale-to-garmin-gui.exe")
         print("  - CLI: dist/mi-scale-to-garmin-cli")
         print("=" * 60)
     elif choice == '0':

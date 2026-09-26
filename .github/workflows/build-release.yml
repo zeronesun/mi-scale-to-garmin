@@ -11,7 +11,7 @@ on:
 env:
   PYTHON_VERSION: '3.12'
   APP_NAME: 'mi-scale-to-garmin'
-
+    GUI_NAME: 'mi-scale-to-garmin-gui'  # GUI 可执行文件名（与本地 build.py 一致）；发布包名仍用 APP_NAME
 jobs:
   build:
     name: Build on ${{ matrix.platform }} (${{ matrix.arch }})
@@ -88,7 +88,7 @@ jobs:
         if: matrix.platform == 'macos'
         run: |
           python -m PyInstaller \
-            --name ${{ env.APP_NAME }} \
+            --name ${{ env.GUI_NAME }} \
             --windowed \
             --onedir \
             --clean \
@@ -125,7 +125,7 @@ jobs:
         if: matrix.platform == 'windows'
         run: |
           python -m PyInstaller `
-            --name ${{ env.APP_NAME }} `
+            --name ${{ env.GUI_NAME }} `
             --windowed `
             --onedir `
             --clean `
@@ -170,12 +170,12 @@ jobs:
             --icon-size 100 \
             --app-drop-link 450 185 \
             "${{ env.APP_NAME }}-${{ matrix.platform }}-${{ matrix.arch }}-${{ steps.version.outputs.version }}.${{ matrix.artifact_ext }}" \
-            "dist/${{ env.APP_NAME }}.app"
+            "dist/${{ env.GUI_NAME }}.app"
 
       - name: Create ZIP archive (Windows)
         if: matrix.platform == 'windows'
         run: |
-          Compress-Archive -Path "dist\${{ env.APP_NAME }}" `
+          Compress-Archive -Path "dist\${{ env.GUI_NAME }}" `
             -DestinationPath "${{ env.APP_NAME }}-${{ matrix.platform }}-${{ matrix.arch }}-${{ steps.version.outputs.version }}.${{ matrix.artifact_ext }}"
         shell: pwsh
 
