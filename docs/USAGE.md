@@ -63,9 +63,25 @@ crontab -e
 
 ---
 
-## 5. 高级排错
+## 5. 数据目录在哪里
 
-### 5.1 查看详细状态
+排错时先确认数据落点（完整规则见 [README 2.6 节](../README.md#26-数据目录规则)）：
+
+| 运行形态 | 数据目录 |
+|----------|----------|
+| 开发版（`python src/main.py`） | 项目根 `data/` |
+| 打包版 exe（CLI / GUI） | Windows `%APPDATA%\mi-scale-to-garmin\`；macOS `~/Library/Application Support/mi-scale-to-garmin/`；Linux `~/.local/share/mi-scale-to-garmin/` |
+| Docker | 容器内 `/app/data`（volume 挂载） |
+
+- 本文档中出现的 `data/...` 路径，打包版请替换为上述实际数据目录。
+- 开发版与打包版 token 不共享，两种形态各认证一次。
+- GUI 可在"设置 → 数据目录设置"中查看当前目录、自定义或重置为默认。
+
+---
+
+## 6. 高级排错
+
+### 6.1 查看详细状态
 
 同步失败但无明确报错时，按数据流逐段定位：
 
@@ -73,7 +89,7 @@ crontab -e
 - `body_data` 未生成 → 问题在小米侧（token 失效/网络/型号），查看终端日志。
 - 终端日志中 `登录成功` / `token 已保存` 表示认证环节通过。
 
-### 5.2 重置认证（环境重置）
+### 6.2 重置认证（环境重置）
 
 顽固授权问题的标准重置流程：
 
@@ -83,6 +99,6 @@ crontab -e
 
 ---
 
-## 6. 反馈与贡献
+## 7. 反馈与贡献
 
 发现 Bug 或有改进建议，欢迎通过 GitHub Issues / PR 反馈。

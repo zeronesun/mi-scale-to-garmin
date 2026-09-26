@@ -14,11 +14,12 @@
 1. [环境准备](#1-环境准备)
 2. [下载与安装](#2-下载与安装)
 3. [Docker 部署](#25-docker-部署)
-4. [配置](#3-配置)
-5. [使用](#4-使用)
-6. [进阶](#5-进阶)
-7. [数据过滤](#6-数据过滤)
-8. [常见问题 (FAQ)](#7-常见问题-faq)
+4. [数据目录规则](#26-数据目录规则)
+5. [配置](#3-配置)
+6. [使用](#4-使用)
+7. [进阶](#5-进阶)
+8. [数据过滤](#6-数据过滤)
+9. [常见问题 (FAQ)](#7-常见问题-faq)
 
 ---
 
@@ -107,6 +108,24 @@ docker-compose pull
 docker-compose --profile login run --rm login    # 首次：小米授权
 docker-compose run --rm sync                     # 同步
 ```
+
+---
+
+## 2.6. 数据目录规则
+
+所有运行数据（小米 token、佳明会话、身体数据备份、验证码图片、FIT 文件）的落点按运行形态区分：
+
+| 版本 | 运行形态 | 数据目录 | 说明 |
+|----------|----------|------|------|
+| 开发版 | （`python src/main.py`） | 项目根 `data/` | 跟着项目走，已 gitignore，不会进仓库 |
+| 发布版 | exe（CLI / GUI） | Windows `%APPDATA%\mi-scale-to-garmin\`；macOS `~/Library/Application Support/mi-scale-to-garmin/`；Linux `~/.local/share/mi-scale-to-garmin/` | CLI 与 GUI 共享同一目录，认证一次两边通用；GUI 可在"设置 → 数据目录设置"中自定义或重置 |
+| 容器 | Docker | 容器内 `/app/data` | 通过 volume 挂载到宿主机 |
+
+注意：
+
+- 开发版与打包版**各存一份 token**，互不共享——两种形态各认证一次即可，之后均零交互。
+- 开发版：所有数据目录均已 gitignore（`data/*` 全局防线），敏感凭证不会进入 git 仓库。
+- 发布版：不读写代码库目录，用户机器上无需源码；清理数据 = 删除对应数据目录。
 
 ---
 
