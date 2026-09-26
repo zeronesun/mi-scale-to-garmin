@@ -11,6 +11,7 @@ from PyQt6.QtCore import Qt
 sys.path.append(str(Path(__file__).parent.parent))
 
 from gui.main_window import MainWindow
+from utils.paths import get_default_config_path
 
 # Configure logging
 logging.basicConfig(
@@ -35,7 +36,8 @@ def main():
     app.setOrganizationName("zeronesun")
 
     # 获取配置文件路径（支持命令行参数）
-    config_path = "users.json"  # 默认配置
+    # 默认：开发=项目根 users.json；打包=数据目录 users.json
+    config_path = str(get_default_config_path())
     if len(sys.argv) > 1:
         # 如果提供了命令行参数，使用第一个参数作为配置文件路径
         config_path = sys.argv[1]

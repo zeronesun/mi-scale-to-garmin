@@ -74,8 +74,8 @@ class XiaomiPage(QWizardPage):
 
         # 提示信息
         hint_label = QLabel(
-            "提示: 您的小米账号密码将加密保存在本地配置文件中。\n"
-            "首次同步时需要完成小米账号登录验证。"
+            "提示: 密码仅用于本次登录验证，不会保存。\n"
+            "登录成功后凭证保存在本地数据目录，之后同步无需再输入密码。"
         )
         hint_label.setWordWrap(True)
         hint_label.setStyleSheet("color: #666; font-size: 12px; padding: 10px;")
@@ -418,8 +418,8 @@ class GarminPage(QWizardPage):
 
         # 提示信息
         hint_label = QLabel(
-            "提示: 您的 Garmin 账号密码将加密保存在本地配置文件中。\n"
-            "如果启用了两步验证,首次同步时需要输入验证码。"
+            "提示: 如启用两步验证，首次同步时需要输入验证码。\n"
+            "佳明会话失效时会临时弹窗索要密码（不会保存）。"
         )
         hint_label.setWordWrap(True)
         hint_label.setStyleSheet("color: #666; font-size: 12px; padding: 10px;")

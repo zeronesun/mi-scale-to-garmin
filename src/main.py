@@ -3,7 +3,7 @@ from garmin.client import GarminClient
 from garmin.fit_generator import create_weight_fit_file
 from xiaomi.client import XiaomiClient, fetch_merged_weights
 from xiaomi.config import ConfigManager
-from utils.paths import get_app_data_dir
+from utils.paths import get_app_data_dir, get_default_config_path
 import argparse
 import sys
 import logging
@@ -100,7 +100,7 @@ def display_weight_data(weights, limit=10):
 
 def main():
     parser = argparse.ArgumentParser(description="Xiaomi Scale Sync to Garmin")
-    parser.add_argument("--config", default="users.json",
+    parser.add_argument("--config", default=str(get_default_config_path()),
                         help="Path to users.json config file")
     parser.add_argument("--limit", type=int, default=10,
                         help="Number of records to display")

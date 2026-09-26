@@ -74,7 +74,8 @@ crontab -e
 | Docker | 容器内 `/app/data`（volume 挂载） |
 
 - 本文档中出现的 `data/...` 路径，打包版请替换为上述实际数据目录。
-- 开发版与打包版 token 不共享，两种形态各认证一次。
+- **`users.json` 位置**：开发版在项目根；打包版在数据目录内（`%APPDATA%\mi-scale-to-garmin\users.json`）。
+- 开发版与打包版 token 和配置不共享，两种形态各认证一次。
 - GUI 可在"设置 → 数据目录设置"中查看当前目录、自定义或重置为默认。
 
 ---

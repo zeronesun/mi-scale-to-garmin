@@ -123,6 +123,21 @@ def get_config_dir() -> Path:
     return config_dir
 
 
+def get_default_config_path() -> Path:
+    """
+    获取默认 users.json 配置路径
+
+    - 开发环境：项目根 users.json
+    - 打包后：数据目录下的 users.json（与 token 同处，免疫打包目录清理）
+
+    Returns:
+        Path: 默认配置路径
+    """
+    if not getattr(sys, 'frozen', False):
+        return get_config_dir() / 'users.json'
+    return get_app_data_dir() / 'users.json'
+
+
 def harden_file_permissions(path) -> bool:
     """
     加固敏感文件权限：仅当前用户可读写（参考 garmin-connect-plugin-for-dsh 的 0o600 做法）
