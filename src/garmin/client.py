@@ -26,7 +26,7 @@ class ActivityUploadFormat(Enum):
     TCX = auto()
 
 class GarminClient:
-    def __init__(self, email, password=None, auth_domain="CN", session_dir="data/.garth", session_name=None, password_provider=None):
+    def __init__(self, email, password=None, auth_domain="CN", session_dir=None, session_name=None, password_provider=None):
         self.email = email
         # 决策 4：密码可选；password_provider 为惰性回调（会话失效时才调用，
         # 避免会话有效时白问一次密码）
@@ -34,6 +34,11 @@ class GarminClient:
         self._password_provider = password_provider
         self.auth_domain = auth_domain
         self.session_name = session_name or email  # 脱敏标识，默认用 email
+        # 会话目录默认走 get_app_data_dir（开发=项目根 data/，打包=%APPDATA%）；
+        # GUI 可显式传入 get_session_dir() 的结果（行为一致）
+        if session_dir is None:
+            from utils.paths import get_app_data_dir
+            session_dir = get_app_data_dir() / '.garth'
         self.session_dir = Path(session_dir) / self.session_name  # Segregate sessions by name
         # Create independent Client instance to avoid conflicts with global garth singleton
         self._client = Client()

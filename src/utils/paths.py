@@ -158,6 +158,18 @@ def harden_file_permissions(path) -> bool:
         return False
 
 
+def get_captcha_dir() -> Path:
+    """
+    获取验证码图片目录（data/captcha/）
+
+    Returns:
+        Path: 验证码目录（自动创建）
+    """
+    captcha_dir = get_app_data_dir() / 'captcha'
+    captcha_dir.mkdir(parents=True, exist_ok=True)
+    return captcha_dir
+
+
 def get_xiaomi_auth_path(xiaomi_prefix: str, custom_base: str = None) -> Path:
     """
     获取小米 token 会话文件路径（不含 token 的 users.json 之外的独立存储）

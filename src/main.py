@@ -4,6 +4,7 @@ from garmin.fit_generator import create_weight_fit_file
 from xiaomi.client import (XiaomiClient, unmarshal_fitness_data,
                            merge_weight_records)
 from xiaomi.config import ConfigManager
+from utils.paths import get_app_data_dir
 import argparse
 import sys
 import logging
@@ -108,7 +109,7 @@ def main():
                         help="Generate FIT files for Garmin")
     parser.add_argument("--sync", action="store_true",
                         help="Upload weight data to Garmin Connect")
-    parser.add_argument("--output-dir", default="data/garmin-fit",
+    parser.add_argument("--output-dir", default=str(get_app_data_dir() / 'garmin-fit'),
                         help="Directory for generated FIT files")
     parser.add_argument("--non-interactive", action="store_true",
                         help="非交互模式：需要输入时直接报错退出（计划任务/CI 用）")
@@ -264,13 +265,12 @@ def main():
                         f"Successfully retrieved {len(weights)} weight records")
                     display_weight_data(weights, limit=args.limit)
 
-                    # Save to JSON file
-                    output_file = f"data/body_data_{xiaomi_prefix}.json"
-                    output_path = Path(output_file)
+                    # Save to JSON file（统一走 get_app_data_dir：开发=项目根 data/，打包=%APPDATA%）
+                    output_path = get_app_data_dir() / f"body_data_{xiaomi_prefix}.json"
                     output_path.parent.mkdir(parents=True, exist_ok=True)
-                    with open(output_file, 'w', encoding='utf-8') as f:
+                    with open(output_path, 'w', encoding='utf-8') as f:
                         json.dump(weights, f, indent=2, ensure_ascii=False)
-                    logger.info(f"Weight data saved to {output_file}")
+                    logger.info(f"Weight data saved to {output_path}")
 
                     # Generate FIT file if requested
                     if args.fit:

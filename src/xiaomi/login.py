@@ -327,9 +327,9 @@ class XiaomiLogin:
 
         captcha_image = result.get("captcha")
 
-        # Create data/captcha directory if it doesn't exist
-        captcha_dir = Path("data/captcha")
-        captcha_dir.mkdir(parents=True, exist_ok=True)
+        # 验证码目录统一走 get_app_data_dir（开发=项目根 data/，打包=%APPDATA%）
+        from utils.paths import get_captcha_dir
+        captcha_dir = get_captcha_dir()
 
         # Generate unique filename with timestamp
         timestamp = int(time.time())
