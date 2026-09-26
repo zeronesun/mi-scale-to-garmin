@@ -1,6 +1,6 @@
 """
-Garmin Weight Sync GUI
-GUI Application for Garmin Weight Sync
+mi-scale-to-garmin GUI
+GUI Application for mi-scale-to-garmin
 """
 
 from .add_user_dialog import AddUserDialog

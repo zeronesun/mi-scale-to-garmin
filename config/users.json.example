@@ -1,28 +1,29 @@
 {
+    // ⚠️ 本文件是【参考模板】，含 // 注释，不是合法 JSON
+    // 复制为 users.json 使用时，必须删除所有 // 注释行，否则解析失败
+    //
+    // 本文件只存【身份与偏好】，不含密码、不含 token（无密文件，可安全备份/分享）
+    // 密码：仅在 token 缺失/失效时终端输入（getpass 隐藏），认证后丢弃、不落盘
+    // 小米 token：存 data/xiaomi_auth_{xiaomi_prefix}.json（首次认证后自动生成）
+    // 佳明 token：存 data/.garth/{garmin_prefix}/（garth 会话目录，首次认证后自动生成）
+    // 空字段/占位符（your_xxx）会在启动时引导式提示输入并写回 users.json
     "users": [
         {
-            // 脱敏标识（可选）：用于小米侧输出文件名和日志，不填则用 username
-            // 效果：data/body_data_my_scale.json, data/garmin-fit/body_my_scale_*.fit
-            "xiaomi_prefix": "my_scale",
+            // 脱敏标识（可选）：用于小米侧输出文件名和日志
+            // 不填则回退到账号 SHA256 前 8 位（不会用明文账号）
+            // 效果：data/body_data_my_xiaomi.json, data/garmin-fit/body_my_xiaomi_*.fit
+            "xiaomi_prefix": "my_xiaomi",
             // 小米账号（手机号/邮箱），用于登录认证
             "username": "your_xiaomi_username",
-            "password": "your_xiaomi_password",
             // 小米体脂秤设备型号
             "model": "yunmai.scales.ms103",
-            // 小米 Token（首次登录后自动填充，无需手动填写）
-            "token": {
-                "userId": "",
-                "passToken": "",
-                "ssecurity": ""
-            },
-            // Garmin 账号配置
-            // 脱敏标识（可选）：用于佳明侧会话目录和日志，不填则用 garmin.email
+            // 脱敏标识（可选）：用于佳明侧会话目录和日志
+            // 不填则回退到邮箱 SHA256 前 8 位（不会用明文邮箱）
             // 效果：data/.garth/my_garmin/
             "garmin_prefix": "my_garmin",
-            
+            // Garmin 账号配置（无密码字段）
             "garmin": {
                 "email": "your_garmin_email",
-                "password": "your_garmin_password",
                 // 佳明服务器区域：CN=中国区, COM=国际区
                 "domain": "CN"
             }

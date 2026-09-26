@@ -10,7 +10,7 @@ on:
 
 env:
   PYTHON_VERSION: '3.12'
-  APP_NAME: 'GarminWeightSync'
+  APP_NAME: 'mi-scale-to-garmin'
 
 jobs:
   build:

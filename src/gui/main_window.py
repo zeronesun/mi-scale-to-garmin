@@ -112,7 +112,7 @@ class MainWindow(QMainWindow):
 
     def init_ui(self):
         """初始化 UI"""
-        self.setWindowTitle("Garmin 体重同步管理 v2.0")
+        self.setWindowTitle("mi-scale-to-garmin")
         self.setMinimumSize(1000, 700)
 
         # 创建中心部件
@@ -310,11 +310,16 @@ class MainWindow(QMainWindow):
 
             self.label_total_users.setText(f"总用户: {len(users)}")
 
+            from core.account import resolve_prefix
+            from core.session_store import load_xiaomi_auth
+
             for user in users:
                 item = QListWidgetItem()
 
-                # 构建显示文本
-                status = "✅ 已授权" if user.token and user.token.userId else "❌ 未授权"
+                # 构建显示文本（决策 2：授权状态查独立会话文件，不再查 users.json 内嵌 token）
+                xiaomi_prefix = resolve_prefix(user.xiaomi_prefix, user.username)
+                session_token = load_xiaomi_auth(xiaomi_prefix, xiaomi_account=user.username)
+                status = "✅ 已授权" if session_token else "❌ 未授权"
                 last_sync = user.last_sync if user.last_sync else "从未同步"
                 garmin_domain = user.garmin.domain if user.garmin else "N/A"
 
@@ -600,10 +605,10 @@ class MainWindow(QMainWindow):
         """显示关于对话框"""
         QMessageBox.about(
             self,
-            "关于 Garmin 体重同步",
+            "关于 mi-scale-to-garmin",
             """
-            <h3>Garmin 体重同步管理 v2.0</h3>
-            <p>将小米体重数据自动同步到 Garmin Connect</p>
+            <h3>mi-scale-to-garmin</h3>
+            <p>将小米体脂秤测量数据（体重、BMI、体脂率等身体成分）自动同步到 Garmin Connect</p>
             <p><b>功能特性:</b></p>
             <ul>
                 <li>支持多用户管理</li>
@@ -611,7 +616,7 @@ class MainWindow(QMainWindow):
                 <li>实时同步进度显示</li>
                 <li>数据过滤支持</li>
             </ul>
-<p><b>开发者:</b> zeronesun</p>
+            <p><b>开发者:</b> zeronesun</p>
             <p><b>许可:</b> MIT License</p>
             """
         )
@@ -724,7 +729,7 @@ class MainWindow(QMainWindow):
 
             # 更新窗口标题
             config_name = path.stem
-            self.setWindowTitle(f"Garmin 体重同步管理 v2.0 - {config_name}")
+            self.setWindowTitle(f"mi-scale-to-garmin - {config_name}")
         except Exception as e:
             # 加载失败，恢复旧配置
             self.config_path = old_config
@@ -761,6 +766,11 @@ class MainWindow(QMainWindow):
             result = self._handle_garmin_mfa(progress.username, details)
             # 将结果发送回工作线程
             self._send_login_result(progress.username, result)
+        elif action == "garmin_password":
+            # 决策 4：佳明会话失效时弹窗输入密码（仅内存中使用）
+            result = self._handle_password_input(
+                progress.username, details, service="佳明")
+            self._send_login_result(progress.username, result)
 
     def _handle_xiaomi_login(self, username: str, details: Dict[str, Any]) -> Dict[str, Any]:
         """处理小米登录(在主线程中同步执行)"""
@@ -771,11 +781,21 @@ class MainWindow(QMainWindow):
             username_param = details.get("username")
             password_param = details.get("password")
 
-            if not username_param or not password_param:
+            if not username_param:
                 return {
                     "success": False,
-                    "error": "缺少用户名或密码"
+                    "error": "缺少用户名"
                 }
+
+            # 决策 4：users.json 不再存密码，缺失时弹窗输入（仅内存中使用）
+            if not password_param:
+                from gui.auth_dialogs import PasswordDialog
+                dialog = PasswordDialog(username_param, service="小米", parent=self)
+                if dialog.exec() != 1:
+                    return {"success": False, "error": "用户取消密码输入"}
+                password_param = dialog.get_password()
+                if not password_param:
+                    return {"success": False, "error": "密码为空"}
 
             # 创建 MiCloudSync 实例
             micloud_sync = MiCloudSync(sid="miothealth")
@@ -971,6 +991,21 @@ class MainWindow(QMainWindow):
             return {
                 "mfa_code": ""
             }
+
+    def _handle_password_input(self, username: str, details: Dict[str, Any],
+                               service: str = "佳明") -> Dict[str, Any]:
+        """处理密码输入请求(在主线程中同步执行，决策 4)"""
+        try:
+            from gui.auth_dialogs import PasswordDialog
+
+            account = details.get("email") or details.get("username") or username
+            dialog = PasswordDialog(account, service=service, parent=self)
+            if dialog.exec() == 1:  # Accepted
+                return {"password": dialog.get_password()}
+            return {"password": ""}
+        except Exception as e:
+            logger.exception(f"密码输入处理失败: {e}")
+            return {"password": ""}
 
     def _send_login_result(self, username: str, result: Dict[str, Any]):
         """将登录结果发送回同步线程"""

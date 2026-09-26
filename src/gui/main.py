@@ -31,8 +31,8 @@ def main():
 
     # 创建应用
     app = QApplication(sys.argv)
-    app.setApplicationName("Garmin Weight Sync")
-    app.setOrganizationName("GarminSync")
+    app.setApplicationName("mi-scale-to-garmin")
+    app.setOrganizationName("zeronesun")
 
     # 获取配置文件路径（支持命令行参数）
     config_path = "users.json"  # 默认配置
@@ -45,7 +45,7 @@ def main():
     window = MainWindow(config_path=config_path)
     window.show()
 
-    logger.info("Garmin 体重同步管理 GUI 已启动")
+    logger.info("mi-scale-to-garmin GUI 已启动")
 
     # 运行应用
     sys.exit(app.exec())

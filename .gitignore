@@ -47,6 +47,10 @@ users.json
 config/users.json
 users-backup.json
 
+# 备份/回收站（含真实账号信息的 users.json 备份）
+.trash/
+config/.trash/
+
 # Docker - sensitive config and data
 data/*
 
@@ -60,5 +64,6 @@ data/*
 /release/*
 
 dist/*
-GarminWeightSync.spec/*
+mi-scale-to-garmin.spec/*
+mi-scale-to-garmin-cli.spec/*
 CLAUDE.md

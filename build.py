@@ -1,6 +1,6 @@
 """
 PyInstaller 打包脚本
-用于将 Garmin Weight Sync 打包成独立可执行文件
+用于将 mi-scale-to-garmin 打包成独立可执行文件
 """
 import PyInstaller.__main__
 import os
@@ -37,7 +37,7 @@ def build_gui():
     ]
 
     args = [
-        '--name=GarminWeightSync',
+        '--name=mi-scale-to-garmin',
         '--windowed',  # 无控制台窗口
         '--onedir',    # 打包成目录（启动更快）
         '--clean',     # 清理缓存
@@ -76,7 +76,7 @@ def build_gui():
     print()
     print("=" * 60)
     print("✅ GUI 版本打包完成！")
-    print("输出文件: dist/GarminWeightSync")
+    print("输出文件: dist/mi-scale-to-garmin")
     print("=" * 60)
 
 
@@ -104,7 +104,7 @@ def build_cli():
     ]
 
     args = [
-        '--name=garmin-sync-cli',
+        '--name=mi-scale-to-garmin-cli',
         '--onefile',
         '--clean',
         '--noconfirm',
@@ -137,7 +137,7 @@ def build_cli():
     print()
     print("=" * 60)
     print("✅ CLI 版本打包完成！")
-    print("输出文件: dist/garmin-sync-cli")
+    print("输出文件: dist/mi-scale-to-garmin-cli")
     print("=" * 60)
 
 
@@ -145,7 +145,7 @@ def build_all():
     """打包所有版本"""
     print()
     print("╔" + "=" * 58 + "╗")
-    print("║" + " " * 10 + "Garmin Weight Sync 打包工具" + " " * 19 + "║")
+    print("║" + " " * 10 + "mi-scale-to-garmin 打包工具" + " " * 13 + "║")
     print("╚" + "=" * 58 + "╝")
     print()
 
@@ -184,8 +184,8 @@ def build_all():
         print()
         print("=" * 60)
         print("✅ 所有版本打包完成！")
-        print("  - GUI: dist/GarminWeightSync")
-        print("  - CLI: dist/garmin-sync-cli")
+        print("  - GUI: dist/mi-scale-to-garmin")
+        print("  - CLI: dist/mi-scale-to-garmin-cli")
         print("=" * 60)
     elif choice == '0':
         print("退出")
