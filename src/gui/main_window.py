@@ -113,7 +113,22 @@ class MainWindow(QMainWindow):
     def init_ui(self):
         """初始化 UI"""
         self.setWindowTitle("mi-scale-to-garmin")
+        self._set_window_icon()
         self.setMinimumSize(1000, 700)
+
+    def _set_window_icon(self):
+        """设置窗口图标（开发版/打包版路径自适应，图标缺失时静默跳过）"""
+        try:
+            if getattr(sys, "frozen", False):
+                # 打包版：资源在 _MEIPASS 临时解压目录（spec 已把 src/ 整体打入 datas）
+                base = Path(sys._MEIPASS) / "src"
+            else:
+                base = Path(__file__).parent.parent
+            icon_path = base / "gui" / "resources" / "icons" / "app_icon.ico"
+            if icon_path.exists():
+                self.setWindowIcon(QIcon(str(icon_path)))
+        except Exception:
+            logger.debug("窗口图标设置失败（忽略）", exc_info=True)
 
         # 创建中心部件
         central_widget = QWidget()
