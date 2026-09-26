@@ -257,7 +257,7 @@ class XiaomiLogin:
         Returns:
             Dict with token data if successful, None otherwise
         """
-        print(f"\n🔐 Attempting login for {username}...")
+        print(f"\n[INFO] Attempting login for {username}...")
         result = self.cloud.login(username, password)
         
         if result.get("ok"):
@@ -270,7 +270,7 @@ class XiaomiLogin:
             return self._handle_verify(result)
         
         else:
-            print(f"\n❌ Login Failed")
+            print(f"\n[ERR] Login Failed")
             print(f"Result: {result}")
             if result.get("exception"):
                 print(f"Exception: {result.get('exception')}")
@@ -278,7 +278,7 @@ class XiaomiLogin:
     
     def _handle_success(self, result: Dict) -> Dict:
         """Handle successful login"""
-        print("\n✅ Login SUCCESS!")
+        print("\n[OK] Login SUCCESS!")
         
         # Extract token information
         token_str = result.get('token', '')
@@ -306,7 +306,7 @@ class XiaomiLogin:
         print(f"Token: {token_str}")
         
         # Try to fetch devices to verify
-        print("\n📱 Fetching devices...")
+        print("\n[INFO] Fetching devices...")
         try:
             devices = self.cloud.get_devices()
             if devices:
@@ -323,7 +323,7 @@ class XiaomiLogin:
     
     def _handle_captcha(self, result: Dict) -> Optional[Dict]:
         """Handle captcha challenge"""
-        print("\n🖼️  Captcha Required")
+        print("\n[CAPTCHA] Required")
 
         captcha_image = result.get("captcha")
 
@@ -338,7 +338,7 @@ class XiaomiLogin:
         # Write captcha image to file
         captcha_path.write_bytes(captcha_image)
 
-        print(f"📸 Captcha image saved to: {captcha_path}")
+        print(f"[CAPTCHA] image saved to: {captcha_path}")
 
         # Get absolute path for browser
         captcha_abs_path = captcha_path.resolve()
@@ -346,9 +346,9 @@ class XiaomiLogin:
         # Try to open in browser
         try:
             webbrowser.open(f"file://{captcha_abs_path}")
-            print("✅ Captcha image opened in browser")
+            print("[OK] Captcha image opened in browser")
         except Exception as e:
-            print(f"⚠️  Could not open browser: {e}")
+            print(f"[WARN] Could not open browser: {e}")
             print(f"Please open the file manually: {captcha_abs_path}")
 
         # Get user input
@@ -357,10 +357,10 @@ class XiaomiLogin:
         # Note: Keeping captcha file for debugging purposes (not deleting)
         
         if not code:
-            print("❌ No code entered. Aborting.")
+            print("[ERR] No code entered. Aborting.")
             return None
         
-        print("🔄 Submitting captcha...")
+        print("[INFO] Submitting captcha...")
         captcha_result = self.cloud.login_captcha(code)
         
         if captcha_result.get("ok"):
@@ -371,12 +371,12 @@ class XiaomiLogin:
             return self._handle_verify(captcha_result)
         
         elif captcha_result.get("captcha"):
-            print("\n❌ Captcha Incorrect!")
+            print("\n[ERR] Captcha Incorrect!")
             print("Please try again later.")
             return None
         
         else:
-            print(f"\n❌ Login Failed!")
+            print(f"\n[ERR] Login Failed!")
             print(f"Result: {captcha_result}")
             if captcha_result.get("exception"):
                 print(f"Exception: {captcha_result.get('exception')}")
@@ -384,28 +384,28 @@ class XiaomiLogin:
     
     def _handle_verify(self, result: Dict) -> Optional[Dict]:
         """Handle 2FA verification"""
-        print("\n⚠️  Two-Factor Authentication Required")
-        print(f"📱 Verification code sent to: {result.get('verify')}")
+        print("\n[WARN] Two-Factor Authentication Required")
+        print(f"[INFO] Verification code sent to: {result.get('verify')}")
         
         code = input("\nEnter the verification code: ").strip()
         
         if not code:
-            print("❌ No code entered. Aborting.")
+            print("[ERR] No code entered. Aborting.")
             return None
         
-        print("🔄 Verifying code...")
+        print("[INFO] Verifying code...")
         verify_result = self.cloud.login_verify(code)
         
         if verify_result.get("ok"):
             return self._handle_success(verify_result)
         else:
-            print(f"\n❌ Verification Failed!")
+            print(f"\n[ERR] Verification Failed!")
             print(f"Result: {verify_result}")
             if verify_result.get("exception"):
                 print(f"Exception: {verify_result.get('exception')}")
             
             if verify_result.get("captcha"):
-                print("\n⚠️  Captcha triggered after failed verification.")
+                print("\n[WARN] Captcha triggered after failed verification.")
                 print("Please wait a few minutes and try again.")
             
             return None
@@ -428,7 +428,7 @@ def main():
     users = config_mgr.get_users()
     
     if not users:
-        print(f"❌ No users found in {args.config}")
+        print(f"[ERR] No users found in {args.config}")
         print("Please add users to the configuration file first.")
         return
 
@@ -437,20 +437,20 @@ def main():
     try:
         users = [ensure_identity(u, config_mgr) for u in users]
     except NonInteractiveError as e:
-        print(f"❌ {e}")
+        print(f"[ERR] {e}")
         return
     
     for user in users:
         username = user.get("username")
         if not username:
-            print(f"⚠️  Skipping incomplete user profile")
+            print(f"[WARN] Skipping incomplete user profile")
             continue
 
         # 决策 4：密码仅终端 getpass 输入（users.json 不再存密码），认证后丢弃
         import getpass
         password = getpass.getpass(f"小米密码（{username}）: ")
         if not password:
-            print(f"⚠️  未输入密码，跳过 {username}")
+            print(f"[WARN] 未输入密码，跳过 {username}")
             continue
 
         # 脱敏前缀：配置了用配置，未配置回退到账号短哈希（B）
@@ -465,15 +465,15 @@ def main():
             if token_data:
                 # 决策 2：token 存独立会话文件（含账号哈希绑定 A），不写 users.json
                 from core.session_store import save_xiaomi_auth
-                print("\n💾 Saving token to session file...")
+                print("\n[INFO] Saving token to session file...")
                 save_xiaomi_auth(xiaomi_prefix, token_data,
                                     xiaomi_account=username)
-                print(f"✅ Token saved for {xiaomi_prefix}")
+                print(f"[OK] Token saved for {xiaomi_prefix}")
             else:
-                print(f"❌ Login failed for {username}")
+                print(f"[ERR] Login failed for {username}")
 
         except Exception as e:
-            print(f"❌ Error during login: {e}")
+            print(f"[ERR] Error during login: {e}")
             _LOGGER.exception("Login error")
 
         finally:

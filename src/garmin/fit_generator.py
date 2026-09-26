@@ -110,41 +110,55 @@ def create_weight_fit_file(
         # fit-tool expects milliseconds for timestamp field in some contexts, 
         # but let's see. Library usage in generate_fit_file.py used *1000.
         mesg.timestamp = int(ts * 1000)
+        has_data = False
         try:
             # Mappings from Xiaomi data structure to FIT WeightScaleMessage fields
             if w.get('Weight') and not _is_nan(w['Weight']):
                 mesg.weight = float(w['Weight'])
+                has_data = True
 
             if w.get('BMI') and not _is_nan(w['BMI']):
                 mesg.bmi = float(w['BMI'])
+                has_data = True
 
             if w.get('BodyFat') and not _is_nan(w['BodyFat']):
                 mesg.percent_fat = float(w['BodyFat'])
+                has_data = True
 
             if w.get('BodyWater') and not _is_nan(w['BodyWater']):
                 mesg.percent_hydration = float(w['BodyWater'])
+                has_data = True
 
             if w.get('BoneMass') and not _is_nan(w['BoneMass']):
                 mesg.bone_mass = float(w['BoneMass'])
+                has_data = True
 
             if w.get('MetabolicAge') and not _is_nan(w['MetabolicAge']):
                 mesg.metabolic_age = int(w['MetabolicAge'])
+                has_data = True
 
             if w.get('MuscleMass') and not _is_nan(w['MuscleMass']):
                 mesg.muscle_mass = float(w['MuscleMass'])
+                has_data = True
 
             if w.get('VisceralFat') and not _is_nan(w['VisceralFat']):
                 mesg.visceral_fat_rating = int(w['VisceralFat'])
+                has_data = True
 
             if w.get('BasalMetabolism') and not _is_nan(w['BasalMetabolism']):
                 mesg.basal_met = float(w['BasalMetabolism'])
+                has_data = True
 
             if w.get('BodyScore') and not _is_nan(w['BodyScore']):
                 mesg.physique_rating = int(w['BodyScore'])
+                has_data = True
         except Exception as e:
             _LOGGER.warning(f"Failed to parse weight data: {e}. Data: {w}")
-        
-        
+
+        if not has_data:
+            _LOGGER.debug(f"Skipping record with no valid metrics: {w.get('Timestamp') or w.get('Date')}")
+            continue
+
         builder.add(mesg)
         added_count += 1
 

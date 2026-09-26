@@ -49,7 +49,7 @@ def display_weight_data(weights, limit=10):
         return
 
     print(f"\n{'='*80}")
-    print(f"📊 Weight Data Summary - Total Records: {len(weights)}")
+    print(f"[INFO] Weight Data Summary - Total Records: {len(weights)}")
     print(f"{'='*80}\n")
 
     # Show latest records
@@ -88,7 +88,7 @@ def display_weight_data(weights, limit=10):
                           for w in weights if w.get('Weight')]
         if weights_values:
             print(f"{'='*80}")
-            print(f"📈 Statistics")
+            print(f"[INFO] Statistics")
             print(f"{'='*80}")
             print(f"  Latest Weight: {weights_values[0]} kg")
             print(
@@ -364,11 +364,11 @@ def main():
 
                                         if not g_client.login():
                                             logger.error(
-                                                "❌ Garmin login failed. Synchronization aborted.")
+                                                "[ERR] Garmin login failed. Synchronization aborted.")
                                             g_client = None
                                     else:
                                         logger.warning(
-                                            f"⚠️ Garmin credentials missing for {xiaomi_prefix}. Skipping sync.")
+                                            f"[WARN] Garmin credentials missing for {xiaomi_prefix}. Skipping sync.")
                                         g_client = None
 
                                 # Upload if client is available
@@ -380,15 +380,15 @@ def main():
 
                                     if status == "SUCCESS":
                                         logger.info(
-                                            f"✅ 批次 {idx}/{total_chunks} 上传成功")
+                                            f"[OK] 批次 {idx}/{total_chunks} 上传成功")
                                         upload_results['success'] += 1
                                     elif status == "DUPLICATE":
                                         logger.info(
-                                            f"ℹ️ 批次 {idx}/{total_chunks} 数据已存在（重复）")
+                                            f"[INFO] 批次 {idx}/{total_chunks} 数据已存在（重复）")
                                         upload_results['duplicate'] += 1
                                     else:
                                         logger.error(
-                                            f"❌ 批次 {idx}/{total_chunks} 上传失败: {status}")
+                                            f"[ERR] 批次 {idx}/{total_chunks} 上传失败: {status}")
                                         upload_results['failed'] += 1
                                         upload_results['failed_chunks'].append({
                                             'chunk': idx,
@@ -400,14 +400,14 @@ def main():
                         # Print upload summary
                         if args.sync and total_chunks > 0:
                             logger.info("=" * 80)
-                            logger.info(f"📊 上传汇总 - {xiaomi_prefix}")
+                            logger.info(f"[INFO] 上传汇总 - {xiaomi_prefix}")
                             logger.info(f"  总批次数: {total_chunks}")
                             logger.info(
-                                f"  ✅ 成功: {upload_results['success']}")
+                                f"  [OK] 成功: {upload_results['success']}")
                             logger.info(
-                                f"  ℹ️ 重复: {upload_results['duplicate']}")
+                                f"  [INFO] 重复: {upload_results['duplicate']}")
                             logger.info(
-                                f"  ❌ 失败: {upload_results['failed']}")
+                                f"  [ERR] 失败: {upload_results['failed']}")
 
                             if upload_results['failed_chunks']:
                                 logger.info("\n失败的批次详情:")
