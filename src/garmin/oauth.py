@@ -8,7 +8,7 @@
 时由 GarminClient 自动切换调用。
 
 token 文件兼容：读写与 garth 完全相同的目录结构
-（data/.garth/{prefix}/oauth1_token.json + oauth2_token.json），
+（data/auth/garmin/{email}/oauth1_token.json + oauth2_token.json），
 读旧文件即可无缝接管，用户无感知。
 """
 import json

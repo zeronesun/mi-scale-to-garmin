@@ -30,15 +30,14 @@ config.yaml
 /FIT_OUT
 /webdav-db
 /webdav-fit
-/garmin-fit
 /coros-fit
 /.venv
 
 # Generated body data
 body_data_*.json
 weight_data_*.json
-garmin-fit/
-.garth/
+fit/
+auth/
 
 test-users.json
 

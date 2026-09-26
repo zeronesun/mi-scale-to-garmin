@@ -50,16 +50,18 @@ def get_app_data_dir() -> Path:
     return app_data
 
 
-def get_session_dir(email: str, custom_base: str = None) -> Path:
+def get_garmin_auth_dir(custom_base: str = None) -> Path:
     """
-    获取 Garmin 会话目录
+    获取 Garmin 会话基础目录（auth/garmin/）
+
+    具体会话子目录由 GarminClient 按 session_name（脱敏 prefix）拼接，
+    最终路径：auth/garmin/<prefix>/（CLI/GUI 一致，不含 email）
 
     Args:
-        email: 用户邮箱
         custom_base: 自定义基础路径（可选）
 
     Returns:
-        Path: 会话目录路径
+        Path: 会话基础目录
     """
     if custom_base:
         # 使用自定义路径
@@ -68,7 +70,7 @@ def get_session_dir(email: str, custom_base: str = None) -> Path:
         # 使用默认的应用数据目录
         base_path = get_app_data_dir()
 
-    session_dir = base_path / '.garth' / email
+    session_dir = base_path / 'auth' / 'garmin'
     session_dir.mkdir(parents=True, exist_ok=True)
     return session_dir
 
@@ -90,7 +92,7 @@ def get_output_dir(custom_base: str = None) -> Path:
         # 使用默认的应用数据目录
         base_path = get_app_data_dir()
 
-    output_dir = base_path / 'garmin-fit'
+    output_dir = base_path / 'fit'
     output_dir.mkdir(parents=True, exist_ok=True)
     return output_dir
 
@@ -175,7 +177,7 @@ def harden_file_permissions(path) -> bool:
 
 def get_captcha_dir() -> Path:
     """
-    获取验证码图片目录（data/captcha/）
+    获取验证码图片目录（<数据目录>/captcha/）
 
     Returns:
         Path: 验证码目录（自动创建）
@@ -202,12 +204,12 @@ def get_xiaomi_auth_path(xiaomi_prefix: str, custom_base: str = None) -> Path:
         base_path = Path(custom_base)
     else:
         base_path = get_app_data_dir()
-    return base_path / f'xiaomi_auth_{xiaomi_prefix}.json'
+    return base_path / 'auth' / f'xiaomi_auth_{xiaomi_prefix}.json'
 
 
 def harden_garmin_session_dir(session_dir) -> bool:
     """
-    加固 garth 会话目录（data/.garth/{prefix}/）：目录本身 + 内部 token 文件
+    加固 garth 会话目录（auth/garmin/{email}/）：目录本身 + 内部 token 文件
 
     Args:
         session_dir: garth 会话目录

@@ -5,7 +5,7 @@
 **数据去向**：
 
 - **推送到佳明**：FIT `weight_scale` 消息支持的 14 项（体重、BMI、体脂率、体水率、骨量、肌肉量、内脏脂肪等级、基础代谢、身体年龄、身体评分等）
-- **仅存本地**（`data/body_data_*.json`）：小米秤测出的全部 28 项（含蛋白质、腰臀比、体型分类等 FIT 格式不支持的指标）
+- **仅存本地**（`data/body/body_data_*.json`）：小米秤测出的全部 28 项（含蛋白质、腰臀比、体型分类等 FIT 格式不支持的指标）
 
 ---
 
@@ -40,11 +40,13 @@ mi-scale-to-garmin/
 │   └── users.json.example  # 配置模板（含注释，复制为 users.json 使用）
 ├── docs/               # 详细文档（USAGE / DOCKER_SETUP / FILTER_CONFIG）
 ├── data/               # 运行产物（自动创建，已 gitignore）
-│   ├── xiaomi_auth_*.json  # 小米认证凭证（首次认证后自动生成）
-│   ├── .garth/             # 佳明 OAuth 会话（首次认证后自动生成）
-│   ├── body_data_*.json    # 身体成分数据本地备份（全量 28 项）
-│   ├── captcha/            # 登录验证码图片（触发验证码时自动生成）
-│   └── garmin-fit/         # 生成的 FIT 文件
+│   ├── auth/             # 凭证（敏感，删除=重置认证）
+│   │   ├── xiaomi_auth_*.json  # 小米认证凭证（首次认证后自动生成）
+│   │   └── garmin/         # 佳明 OAuth 会话（首次认证后自动生成）
+│   ├── body/             # 身体成分数据本地备份（全量 28 项）
+│   │   └── body_data_*.json
+│   ├── fit/              # 生成的 FIT 文件
+│   └── captcha/          # 登录验证码图片（触发验证码时自动生成）
 ├── tests/              # 测试（unittest）
 ├── debug/              # 调试脚本（原始数据导出等）
 ├── users.json          # 核心配置文件（无密：只存账号/邮箱等身份，不含密码和 token）
@@ -121,6 +123,19 @@ docker-compose run --rm sync                     # 同步
 | 发布版 | exe（CLI / GUI） | Windows `%APPDATA%\mi-scale-to-garmin\`；macOS `~/Library/Application Support/mi-scale-to-garmin/`；Linux `~/.local/share/mi-scale-to-garmin/` | CLI 与 GUI 共享同一目录，认证一次两边通用；GUI 可在"设置 → 数据目录设置"中自定义或重置 |
 | 容器 | Docker | 容器内 `/app/data` | 通过 volume 挂载到宿主机 |
 
+数据目录内部按"敏感度 + 用途"分 4 个子目录（三种形态同构）：
+
+```
+<数据目录>/
+├── users.json        # 用户配置（仅打包版在此；开发版在项目根）
+├── auth/             # 凭证（敏感）——删除此目录 = 重置全部认证
+│   ├── xiaomi_auth_<prefix>.json
+│   └── garmin/<email>/
+├── body/             # 身体数据落盘（排错用，可长期保留）
+├── fit/              # FIT 输出（上传产物，可随意清理）
+└── captcha/          # 验证码临时图
+```
+
 注意：
 
 - **用户配置 `users.json`**：开发版在项目根；打包版在数据目录内（与 token 同处，重新打包/更新程序不会丢配置）。
@@ -161,7 +176,7 @@ docker-compose run --rm sync                     # 同步
 | `xiaomi_prefix` / `garmin_prefix` | 脱敏标识（可选），用于输出文件名、会话目录和日志。不填则回退到账号 SHA256 前 8 位，**永不使用明文账号**。 |
 | `model` | 设备型号。小米体脂秤 S400 填 `yunmai.scales.ms103`；数据已导入小米运动健康时保持默认即可。 |
 | `garmin.domain` | 佳明服务器区域。中国区 `CN`，国际区（台/港/美等）`COM`。 |
-| 密码与 token | 密码仅在认证时终端输入（隐藏回显），认证后丢弃、不落盘；token 自动存到 `data/xiaomi_auth_{prefix}.json`（小米）和 `data/.garth/{prefix}/`（佳明），下次运行自动复用。 |
+| 密码与 token | 密码仅在认证时终端输入（隐藏回显），认证后丢弃、不落盘；token 自动存到 `data/auth/xiaomi_auth_{prefix}.json`（小米）和 `data/auth/garmin/{prefix}/`（佳明），下次运行自动复用。 |
 
 ---
 
@@ -177,8 +192,8 @@ python src/main.py --config users.json --sync
 **首次运行**会按需在终端引导完成认证（之后不再询问）：
 
 1. **身份补齐**：`users.json` 中留空的账号/邮箱会提示输入并写回。
-2. **小米认证**：输入小米密码（隐藏回显）；开启二次验证的账号需输入 6 位短信验证码。成功后 token 存到 `data/xiaomi_auth_{prefix}.json`。
-3. **佳明认证**：上传前输入佳明密码（隐藏回显）。成功后会话存到 `data/.garth/{prefix}/`。
+2. **小米认证**：输入小米密码（隐藏回显）；开启二次验证的账号需输入 6 位短信验证码。成功后 token 存到 `data/auth/xiaomi_auth_{prefix}.json`。
+3. **佳明认证**：上传前输入佳明密码（隐藏回显）。成功后会话存到 `data/auth/garmin/{prefix}/`。
 
 **后续运行**：token/会话有效时全程零交互。
 
@@ -186,8 +201,8 @@ python src/main.py --config users.json --sync
 
 1. 登录小米（复用已存 token，失效时引导重新认证）。
 2. 拉取**全部**历史身体成分记录（双源合并：旧 API 实时数据 + 新 API 补充 Zeeplife 导入数据），终端默认显示最近 10 条（`--limit` 调整显示条数，不影响实际拉取与上传）。
-3. 本地备份到 `data/body_data_{脱敏标识}.json`。
-4. 在 `data/garmin-fit/` 生成 FIT 文件。
+3. 本地备份到 `data/body/body_data_{脱敏标识}.json`。
+4. 在 `data/fit/` 生成 FIT 文件。
 5. 登录佳明（复用已存会话）并上传。
 
 ### 单独认证（不同步）
@@ -214,7 +229,7 @@ python src/xiaomi/login.py --config users.json
 | `--limit N` | 终端显示最近多少条记录（默认 10，不影响实际拉取） |
 | `--fit` | 仅生成本地 FIT 文件，不上传 |
 | `--sync` | 生成并上传（一键同步模式） |
-| `--output-dir PATH` | FIT 输出目录（默认 `data/garmin-fit`） |
+| `--output-dir PATH` | FIT 输出目录（默认 `data/fit`） |
 | `--non-interactive` | 非交互模式，需要输入时直接报错退出（计划任务/CI 用；token 有效时不受影响） |
 
 ### 图形界面（可选）
@@ -271,7 +286,7 @@ Windows 任务计划程序见 [docs/USAGE.md](docs/USAGE.md#4-自动化运行)�
 
 ### Q: 换了新电脑/账号变动？
 
-删除 `data/xiaomi_auth_*.json`（小米认证文件）和 `data/.garth/`（佳明会话目录），重新运行 `python src/main.py --sync` 按提示认证即可。`users.json` 无需改动（不含密码和 token）。
+删除 `data/auth/` 整个目录（小米认证文件 + 佳明会话），重新运行 `python src/main.py --sync` 按提示认证即可。`users.json` 无需改动（不含密码和 token）。
 
 ### Q: 支持哪些小米秤？
 
@@ -282,7 +297,7 @@ Windows 任务计划程序见 [docs/USAGE.md](docs/USAGE.md#4-自动化运行)�
 ## 🛡️ 安全说明
 
 - `users.json` 不含密码和 token（仅账号/邮箱等身份信息），仍建议不要公开分享。
-- 敏感数据在 `data/` 下：`data/xiaomi_auth_*.json`（小米 token）、`data/.garth/`（佳明 OAuth token）——已 `.gitignore`，**勿以任何方式（含 `git add -f`）提交或分享**。
+- 敏感数据在 `data/auth/` 下：`xiaomi_auth_*.json`（小米 token）、`garmin/`（佳明 OAuth token）——已 `.gitignore`，**勿以任何方式（含 `git add -f`）提交或分享**。
 - 密码仅在认证时终端输入（隐藏回显），认证后丢弃，不落盘。
 
 ---

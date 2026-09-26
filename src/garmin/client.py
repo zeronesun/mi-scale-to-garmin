@@ -35,10 +35,11 @@ class GarminClient:
         self.auth_domain = auth_domain
         self.session_name = session_name or email  # 脱敏标识，默认用 email
         # 会话目录默认走 get_app_data_dir（开发=项目根 data/，打包=%APPDATA%）；
-        # GUI 可显式传入 get_session_dir() 的结果（行为一致）
+        # GUI 可显式传入 get_garmin_auth_dir() 的结果（行为一致）
+        # 最终路径：auth/garmin/<session_name>/（CLI/GUI 一致，不含 email）
         if session_dir is None:
             from utils.paths import get_app_data_dir
-            session_dir = get_app_data_dir() / '.garth'
+            session_dir = get_app_data_dir() / 'auth' / 'garmin'
         self.session_dir = Path(session_dir) / self.session_name  # Segregate sessions by name
         # Create independent Client instance to avoid conflicts with global garth singleton
         self._client = Client()

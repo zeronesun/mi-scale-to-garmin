@@ -100,7 +100,7 @@ docker-compose --profile login run --rm login
 2. 提示输入小米密码（隐藏回显，不落盘）。
 3. 图形验证码会自动在浏览器打开，也可手动打开终端输出的图片路径（`data/captcha/captcha_<时间戳>.png`）。
 4. 开启 2FA 的账号输入 6 位短信验证码。
-5. 成功后 token 存到 `data/xiaomi_auth_*.json`（不进配置文件）。
+5. 成功后 token 存到 `data/auth/xiaomi_auth_*.json`（不进配置文件）。
 
 终端出现登录成功提示后，此步骤只需执行一次。
 
@@ -110,7 +110,7 @@ docker-compose --profile login run --rm login
 docker-compose run --rm sync
 ```
 
-执行流程：复用 token 登录小米 → 拉取身体成分数据（终端默认显示最近 10 条）→ 生成 FIT 文件（`data/garmin-fit/`）→ 登录佳明并上传 → 备份全量数据（`data/body_data_*.json`）。
+执行流程：复用 token 登录小米 → 拉取身体成分数据（终端默认显示最近 10 条）→ 生成 FIT 文件（`data/fit/`）→ 登录佳明并上传 → 备份全量数据（`data/body/body_data_*.json`）。
 
 成功输出示例：
 
@@ -126,8 +126,8 @@ docker-compose run --rm sync
 ### 6. 查看产物
 
 ```bash
-ls data/garmin-fit/        # 生成的 FIT 文件
-ls data/body_data_*.json   # 数据备份
+ls data/fit/               # 生成的 FIT 文件
+ls data/body/              # 数据备份
 ```
 
 ---
@@ -190,10 +190,11 @@ mi-scale-to-garmin/
 │   ├── users.json          # 配置文件（无密：只存身份，不含密码和 token）
 │   └── users.json.example  # 配置模板（含 // 注释，复制后需删除）
 ├── data/                   # 运行产物（已 gitignore）
-│   ├── xiaomi_auth_*.json  # 小米认证凭证（首次认证后自动生成）
-│   ├── .garth/             # 佳明 OAuth 会话（首次认证后自动生成）
-│   ├── garmin-fit/         # 生成的 FIT 文件
-│   ├── body_data_*.json    # 数据备份
+│   ├── auth/               # 凭证（敏感，删除=重置认证）
+│   │   ├── xiaomi_auth_*.json  # 小米认证凭证（首次认证后自动生成）
+│   │   └── garmin/         # 佳明 OAuth 会话（首次认证后自动生成）
+│   ├── body/               # 数据备份（body_data_*.json）
+│   ├── fit/                # 生成的 FIT 文件
 │   ├── captcha/            # 登录验证码图片（触发验证码时自动生成）
 │   └── sync.log            # 定时任务日志（如设置）
 ├── src/                    # 源代码
@@ -244,5 +245,5 @@ docker compose run --rm sync
 ## 安全说明
 
 1. `config/users.json` 不含密码和 token（仅身份信息），仍建议不分享给他人或上传公开站点。
-2. 真正的凭证在 `data/` 下（`xiaomi_auth_*.json`、`.garth/`），已 `.gitignore`，**勿以任何方式（含 `git add -f`）提交或分享**。
+2. 真正的凭证在 `data/auth/` 下（`xiaomi_auth_*.json`、`garmin/`），已 `.gitignore`，**勿以任何方式（含 `git add -f`）提交或分享**。
 3. 若凭证不慎泄露，立即修改对应账号密码并删除 `data/` 下相关凭证重新认证。

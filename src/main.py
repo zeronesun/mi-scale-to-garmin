@@ -108,7 +108,7 @@ def main():
                         help="Generate FIT files for Garmin")
     parser.add_argument("--sync", action="store_true",
                         help="Upload weight data to Garmin Connect")
-    parser.add_argument("--output-dir", default=str(get_app_data_dir() / 'garmin-fit'),
+    parser.add_argument("--output-dir", default=str(get_app_data_dir() / 'fit'),
                         help="Directory for generated FIT files")
     parser.add_argument("--non-interactive", action="store_true",
                         help="非交互模式：需要输入时直接报错退出（计划任务/CI 用）")
@@ -225,7 +225,7 @@ def main():
                     display_weight_data(weights, limit=args.limit)
 
                     # Save to JSON file（统一走 get_app_data_dir：开发=项目根 data/，打包=%APPDATA%）
-                    output_path = get_app_data_dir() / f"body_data_{xiaomi_prefix}.json"
+                    output_path = get_app_data_dir() / 'body' / f"body_data_{xiaomi_prefix}.json"
                     output_path.parent.mkdir(parents=True, exist_ok=True)
                     with open(output_path, 'w', encoding='utf-8') as f:
                         json.dump(weights, f, indent=2, ensure_ascii=False)

@@ -20,7 +20,7 @@ sys.path.append(str(Path(__file__).parent.parent))
 from xiaomi.client import XiaomiClient, fetch_merged_weights
 from garmin.client import GarminClient
 from garmin.fit_generator import create_weight_fit_file
-from utils.paths import get_app_data_dir, get_session_dir, get_output_dir
+from utils.paths import get_app_data_dir, get_garmin_auth_dir, get_output_dir
 
 
 class SyncOrchestrator:
@@ -302,7 +302,7 @@ class SyncOrchestrator:
             try:
                 custom_base = getattr(self.config_mgr, 'custom_data_dir', None)
                 data_dir = Path(custom_base) if custom_base else get_app_data_dir()
-                body_data_path = data_dir / f"body_data_{xiaomi_prefix}.json"
+                body_data_path = data_dir / 'body' / f"body_data_{xiaomi_prefix}.json"
                 body_data_path.parent.mkdir(parents=True, exist_ok=True)
                 with open(body_data_path, 'w', encoding='utf-8') as f:
                     json.dump(weights, f, indent=2, ensure_ascii=False)
@@ -363,9 +363,9 @@ class SyncOrchestrator:
                 username=username
             )
 
-            # 获取可写的会话目录（修复打包后的只读文件系统问题）
-            session_dir = get_session_dir(
-                email=user.garmin.email,
+            # 获取可写的会话基础目录（修复打包后的只读文件系统问题）
+            # GarminClient 会在其下按 session_name（脱敏 prefix）建子目录：auth/garmin/<prefix>/
+            session_dir = get_garmin_auth_dir(
                 custom_base=getattr(self.config_mgr, 'custom_data_dir', None)
             )
 

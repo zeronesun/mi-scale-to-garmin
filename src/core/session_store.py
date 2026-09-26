@@ -3,7 +3,7 @@
 
 token 三件套（userId/passToken/ssecurity）独立于 users.json 存储：
 - users.json 只留身份（无密码、无 token），可安全备份/分享
-- token 存 data/xiaomi_auth_{xiaomi_prefix}.json（已 gitignore + 权限加固）
+- token 存 data/auth/xiaomi_auth_{xiaomi_prefix}.json（已 gitignore + 权限加固）
 """
 import json
 import logging
@@ -99,7 +99,7 @@ def save_garmin_session_binding(session_dir, garmin_account: str) -> Path:
     绑定信息单独存 account.json，加载会话时校验。
 
     Args:
-        session_dir: garth 会话目录（data/.garth/{prefix}/）
+        session_dir: garth 会话目录（data/auth/garmin/{email}/）
         garmin_account: 佳明邮箱
 
     Returns:
