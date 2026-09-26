@@ -146,6 +146,7 @@ BMI 正常范围（18.5-24）：
 日志输出示例：
 
 ```
+INFO - Weight filter enabled: 2 condition(s) with 'AND' logic
 INFO - Applying weight filter with 2 condition(s) using 'AND' logic
 INFO - Filter applied: 15/20 records passed (5 filtered out)
 INFO - Filter reduced records from 20 to 15 (5 filtered out)
