@@ -227,7 +227,7 @@ class PasswordDialog(QDialog):
     def __init__(self, account: str, service: str = "小米", parent=None):
         """
         Args:
-            account: 账号（手机号/邮箱，用于提示）
+            account: 用户显示名（调用方已走 resolve_display_name，此处直显）
             service: 服务名（小米/佳明）
             parent: 父窗口
         """
@@ -247,7 +247,7 @@ class PasswordDialog(QDialog):
         title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(title_label)
 
-        info_label = QLabel(f"账号: {mask_account(account)}")
+        info_label = QLabel(f"账号: {account}")
         info_label.setStyleSheet("color: #666; font-size: 12px;")
         info_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(info_label)
@@ -301,7 +301,7 @@ class GarminMfaDialog(QDialog):
         初始化 Garmin MFA 对话框
 
         Args:
-            email: Garmin 账号邮箱
+            email: 用户显示名（调用方已走 resolve_display_name，此处直显）
             parent: 父窗口
         """
         super().__init__(parent)
@@ -326,8 +326,8 @@ class GarminMfaDialog(QDialog):
         title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(title_label)
 
-        # 账号信息（脱敏显示，self.email 保留明文仅供功能使用）
-        account_label = QLabel(f"账号: {mask_account(self.email)}")
+        # 账号信息（显示名，调用方已走 resolve_display_name）
+        account_label = QLabel(f"账号: {self.email}")
         account_label.setStyleSheet("color: #333; font-size: 13px;")
         account_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(account_label)

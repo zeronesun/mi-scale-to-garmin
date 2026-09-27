@@ -133,13 +133,31 @@ def ensure_identity(user: Dict[str, Any], config_mgr,
             user["garmin"]["domain"] = _prompt(
                 "佳明服务器区域（CN/COM）", default="CN") or "CN"
 
-    # 可选前缀：默认用可读的通用标识（xiaomi/garmin，不泄露账号）
+    # 昵称（可选，这一组（小米+佳明）的显示名，纯显示用）
+    if not user.get("nickname"):
+        nickname = _prompt("昵称（可选，这一组的显示名，如 我/老婆）")
+        if len(nickname) > 20:
+            print("[WARN] 昵称超过 20 字符，已忽略")
+            nickname = ""
+        if nickname:
+            # 昵称查重（输入时拦截）
+            from core.account import find_duplicate_nickname
+            existing = config_mgr.get_users()
+            if find_duplicate_nickname(nickname, existing):
+                print(f"[WARN] 昵称 \"{nickname}\" 已被其他用户使用，已忽略")
+                nickname = ""
+        user["nickname"] = nickname
+
+    # 可选前缀：留空自动用昵称（创建那一刻固化）；无昵称则留空走账号哈希
+    # （修复：旧默认值写死 xiaomi/garmin，多用户都按回车会共用同一 token 文件）
     if not user.get("xiaomi_prefix"):
         user["xiaomi_prefix"] = _prompt(
-            "小米脱敏前缀（用于文件名/日志）", default="xiaomi")
+            "小米脱敏前缀（可选，用于文件名，留空自动用昵称）",
+            default=user.get("nickname") or "")
     if not user.get("garmin_prefix"):
         user["garmin_prefix"] = _prompt(
-            "佳明脱敏前缀（用于会话目录/日志）", default="garmin")
+            "佳明脱敏前缀（可选，用于会话目录，留空自动用昵称）",
+            default=user.get("nickname") or "")
 
     config_mgr.save_config()
     print("[完成] 配置已写入 users.json（下次启动不再询问）\n")

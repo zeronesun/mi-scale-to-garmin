@@ -13,13 +13,13 @@
 
 1. [环境准备](#1-环境准备)
 2. [下载与安装](#2-下载与安装)
-3. [Docker 部署](#25-docker-部署)
-4. [数据目录规则](#26-数据目录规则)
-5. [配置](#3-配置)
-6. [使用](#4-使用)
-7. [进阶](#5-进阶)
-8. [数据过滤](#6-数据过滤)
-9. [常见问题 (FAQ)](#7-常见问题-faq)
+3. [数据目录规则](#3-数据目录规则)
+4. [配置](#4-配置)
+5. [使用](#5-使用)
+6. [进阶](#6-进阶)
+7. [Docker 部署](#7-docker-部署)
+8. [数据过滤](#8-数据过滤)
+9. [常见问题 (FAQ)](#9-常见问题-faq)
 
 ---
 
@@ -39,6 +39,7 @@ mi-scale-to-garmin/
 ├── config/             # 配置目录（users.json 放这里或项目根目录均可）
 │   └── users.json.example  # 配置模板（含注释，复制为 users.json 使用）
 ├── docs/               # 详细文档（USAGE / DOCKER_SETUP / FILTER_CONFIG）
+├── scripts/            # 辅助脚本（make_icon.py 图标转换等）
 ├── data/               # 运行产物（自动创建，已 gitignore）
 │   ├── auth/             # 凭证（敏感，删除=重置认证）
 │   │   ├── xiaomi_auth_*.json  # 小米认证凭证（首次认证后自动生成）
@@ -47,13 +48,15 @@ mi-scale-to-garmin/
 │   │   └── body_data_*.json
 │   ├── fit/              # 生成的 FIT 文件
 │   └── captcha/          # 登录验证码图片（触发验证码时自动生成）
+├── dist/               # 打包产物（已 gitignore，结构见「6. 进阶 → 本地打包」）
 ├── tests/              # 测试（unittest）
 ├── debug/              # 调试脚本（原始数据导出等）
+├── .github/            # CI（build-release.yml：tag 触发多平台构建）
 ├── users.json          # 核心配置文件（无密：只存账号/邮箱等身份，不含密码和 token）
 ├── requirements.txt    # 运行依赖
 ├── requirements-gui.txt    # GUI 依赖（PyQt6 等）
 ├── requirements-build.txt  # 打包依赖（PyInstaller 等）
-├── build.py            # 打包脚本（生成 GUI/CLI 可执行文件）
+├── build.py            # 打包脚本（生成 GUI/CLI 可执行文件，支持 --release）
 ├── pyi_rth_pyqt6.py    # PyInstaller PyQt6 运行时钩子
 ├── Dockerfile          # Docker 镜像定义
 ├── docker-compose.yml  # Docker 服务编排（login / sync）
@@ -94,26 +97,7 @@ pip install -r requirements.txt
 
 ---
 
-## 2.5. Docker 部署
-
-> ⚠️ **当前不可用**：镜像 `zeronesun/mi-scale-to-garmin` 尚未构建发布（仓库创建与 CI 发布进行中），`docker-compose pull` 会 404。当前请使用上面的 Python 方式部署；镜像就绪后本节自动生效。
-
-不需要本地 Python 环境时可用 Docker 部署。前提：已安装 [Docker Desktop](https://www.docker.com/products/docker-desktop)（Windows/Mac）或通过 `curl -fsSL https://get.docker.com | sh` 安装（Linux），`docker --version` 可输出版本号。
-
-完整流程、目录结构与排错见 [docs/DOCKER_SETUP.md](docs/DOCKER_SETUP.md)。核心命令：
-
-```bash
-git clone git@github.com:zeronesun/mi-scale-to-garmin.git
-cd mi-scale-to-garmin
-cp config/users.json.example config/users.json   # 模板含 // 注释，复制后需删除
-docker-compose pull
-docker-compose --profile login run --rm login    # 首次：小米授权
-docker-compose run --rm sync                     # 同步
-```
-
----
-
-## 2.6. 数据目录规则
+## 3. 数据目录规则
 
 所有运行数据（用户配置 users.json、小米 token、佳明会话、身体数据备份、验证码图片、FIT 文件）的落点按运行形态区分：
 
@@ -130,7 +114,7 @@ docker-compose run --rm sync                     # 同步
 ├── users.json        # 用户配置（仅打包版在此；开发版在项目根）
 ├── auth/             # 凭证（敏感）——删除此目录 = 重置全部认证
 │   ├── xiaomi_auth_<prefix>.json
-│   └── garmin/<email>/
+│   └── garmin/<prefix>/
 ├── body/             # 身体数据落盘（排错用，可长期保留）
 ├── fit/              # FIT 输出（上传产物，可随意清理）
 └── captcha/          # 验证码临时图
@@ -145,7 +129,7 @@ docker-compose run --rm sync                     # 同步
 
 ---
 
-## 3. 配置
+## 4. 配置
 
 `users.json` 是程序唯一的配置文件。若不存在，复制 `config/users.json.example` 为 `users.json`（模板含 `//` 注释，复制后需删除注释行使其成为合法 JSON）。
 
@@ -155,10 +139,11 @@ docker-compose run --rm sync                     # 同步
 {
     "users": [
         {
-            "xiaomi_prefix": "my_xiaomi",
+            "nickname": "我",
+            "xiaomi_prefix": "我",
             "username": "您的手机号/邮箱",
             "model": "yunmai.scales.ms103",
-            "garmin_prefix": "my_garmin",
+            "garmin_prefix": "我",
             "garmin": {
                 "email": "您的佳明账号",
                 "domain": "CN"
@@ -172,15 +157,67 @@ docker-compose run --rm sync                     # 同步
 
 | 参数 | 说明 |
 |------|------|
+| `nickname` | 显示名（可选）：这一组（小米+佳明）的显示名，与具体账号无关。仅用于界面/日志显示，**永不参与文件名/路径**；建议 ≤20 字符，勿与他人重复（GUI 添加用户时会查重拦截）。 |
 | `username` / `garmin.email` | 账号身份。留空时程序首次运行会引导式提示输入并写回。 |
-| `xiaomi_prefix` / `garmin_prefix` | 脱敏标识（可选），用于输出文件名、会话目录和日志。不填则回退到账号 SHA256 前 8 位，**永不使用明文账号**。 |
+| `xiaomi_prefix` / `garmin_prefix` | 脱敏标识（可选），用于输出文件名、会话目录和日志。留空自动用 `nickname`（创建那一刻固化）；再无则回退到账号 SHA256 前 8 位，**永不使用明文账号**。 |
 | `model` | 设备型号。小米体脂秤 S400 填 `yunmai.scales.ms103`；数据已导入小米运动健康时保持默认即可。 |
 | `garmin.domain` | 佳明服务器区域。中国区 `CN`，国际区（台/港/美等）`COM`。 |
 | 密码与 token | 密码仅在认证时终端输入（隐藏回显），认证后丢弃、不落盘；token 自动存到 `data/auth/xiaomi_auth_{prefix}.json`（小米）和 `data/auth/garmin/{prefix}/`（佳明），下次运行自动复用。 |
 
+### 多用户
+
+`users` 是数组，一个元素 = 一组（一个小米 + 一个佳明 = 一个人）。GUI 点"添加用户"即自动追加；手动配置时复制一个元素块即可：
+
+```json
+{
+    "users": [
+        {
+            "nickname": "我",
+            "xiaomi_prefix": "我",
+            "username": "13800000000",
+            "model": "yunmai.scales.ms103",
+            "garmin_prefix": "我",
+            "garmin": { "email": "me@example.com", "domain": "CN" }
+        },
+        {
+            "nickname": "老婆",
+            "xiaomi_prefix": "老婆",
+            "username": "13900000000",
+            "model": "yunmai.scales.ms103",
+            "garmin_prefix": "老婆",
+            "garmin": { "email": "wife@example.com", "domain": "CN" }
+        }
+    ]
+}
+```
+
+各用户的数据按 prefix 隔离，互不干扰：
+
+```
+data/
+├── body/
+│   ├── body_data_我.json
+│   └── body_data_老婆.json
+├── fit/
+│   ├── body_我_<时间戳>_<序号>.fit
+│   └── body_老婆_<时间戳>_<序号>.fit
+└── auth/
+    ├── xiaomi_auth_我.json
+    ├── xiaomi_auth_老婆.json
+    └── garmin/
+        ├── 我/
+        └── 老婆/
+```
+
+注意：
+
+- **nickname 勿重复**（GUI 添加时查重拦截）；手改造成重名时显示层自动追加脱敏后缀消歧（如 `老婆·138****5678`）。
+- **prefix 创建后勿改**：文件名跟着 prefix 走，改了旧 token/数据会失联，需重新认证。
+- 不想用中文文件名时，prefix 可手动填拼音/英文（nickname 照旧用中文显示）。
+
 ---
 
-## 4. 使用
+## 5. 使用
 
 ### 一键同步
 
@@ -219,7 +256,7 @@ python src/xiaomi/login.py --config users.json
 
 ---
 
-## 5. 进阶
+## 6. 进阶
 
 ### 命令行参数
 
@@ -252,9 +289,51 @@ Windows 任务计划程序见 [docs/USAGE.md](docs/USAGE.md#4-自动化运行)�
 
 > 前提：先在终端手动跑过一次 `--sync` 完成认证。token/会话有效期内定时任务零交互；失效时任务报错退出（不会卡死），手动跑一次重新认证即可。
 
+### 本地打包（开发者）
+
+```bash
+pip install -r requirements-build.txt   # PyInstaller 等
+python build.py gui                     # 只打 GUI（onedir 文件夹）
+python build.py cli                     # 只打 CLI（onefile 单文件）
+python build.py all                     # 全部
+python build.py all --release           # 输出到 dist/release/（默认 dist/dev/）
+```
+
+产物目录按「阶段 + 平台」分层（平台自动检测，PyInstaller 不支持交叉编译——Linux/macOS 产物需在对应系统上构建）：
+
+```
+dist/
+├── dev/                    # 开发验证产物（默认）
+│   ├── windows/  mi-scale-to-garmin-gui/（文件夹）+ mi-scale-to-garmin-cli.exe
+│   └── linux/    mi-scale-to-garmin-cli（ELF，需 glibc，Alpine 不兼容）
+└── release/                # 发布候选（--release）
+    └── <platform>/...      # 结构同上
+```
+
+分发注意：GUI 是文件夹，`_internal/` 必须随 exe 一起（zip 整个文件夹）；CLI 是单文件直接分发。多平台发布走 CI（打 `vX.Y.Z` tag 触发，见 `.github/workflows/build-release.yml`）。
+
 ---
 
-## 6. 数据过滤
+## 7. Docker 部署
+
+> ⚠️ **当前不可用**：镜像 `zeronesun/mi-scale-to-garmin` 尚未构建发布（仓库创建与 CI 发布进行中），`docker-compose pull` 会 404。当前请使用上面的 Python 方式部署；镜像就绪后本节自动生效。
+
+不需要本地 Python 环境时可用 Docker 部署。前提：已安装 [Docker Desktop](https://www.docker.com/products/docker-desktop)（Windows/Mac）或通过 `curl -fsSL https://get.docker.com | sh` 安装（Linux），`docker --version` 可输出版本号。
+
+完整流程、目录结构与排错见 [docs/DOCKER_SETUP.md](docs/DOCKER_SETUP.md)。核心命令：
+
+```bash
+git clone git@github.com:zeronesun/mi-scale-to-garmin.git
+cd mi-scale-to-garmin
+cp config/users.json.example config/users.json   # 模板含 // 注释，复制后需删除
+docker-compose pull
+docker-compose --profile login run --rm login    # 首次：小米授权
+docker-compose run --rm sync                     # 同步
+```
+
+---
+
+## 8. 数据过滤
 
 支持在同步前按健康指标过滤身体成分数据。配置位于每个用户的 `garmin.filter` 下，详见 [docs/FILTER_CONFIG.md](docs/FILTER_CONFIG.md)。
 
@@ -274,7 +353,7 @@ Windows 任务计划程序见 [docs/USAGE.md](docs/USAGE.md#4-自动化运行)�
 
 ---
 
-## 7. 常见问题 (FAQ)
+## 9. 常见问题 (FAQ)
 
 ### Q: 提示 `ModuleNotFoundError: No module named 'requests'`？
 

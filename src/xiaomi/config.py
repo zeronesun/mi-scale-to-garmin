@@ -41,6 +41,15 @@ class ConfigManager:
         from core.account import mask_account
         print(f"User {mask_account(username)} not found in config to update token.")
 
+    def get_user_display_name(self, username: str) -> str:
+        """用户显示名（nickname → 脱敏兜底 → 重名消歧，统一走 resolve_display_name）"""
+        from core.account import resolve_display_name
+        for user in self.get_users():
+            if user.get("username") == username:
+                return resolve_display_name(user, self.get_users())
+        from core.account import mask_account
+        return mask_account(username)
+
     def get_user_token(self, username: str) -> Optional[Dict]:
         for user in self.config_data.get("users", []):
             if user.get("username") == username:

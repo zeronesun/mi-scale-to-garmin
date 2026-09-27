@@ -25,9 +25,14 @@ class TokenData:
 
 @dataclass
 class UserModel:
-    """用户数据模型"""
+    """用户数据模型
+
+    一条记录 = 一组（一个小米 + 一个佳明 = 一个人）。
+    nickname 是这一组的显示名（纯显示用，永不参与文件名/路径/功能键）。
+    """
     username: str
     password: str
+    nickname: Optional[str] = None
     model: str = "yunmai.scales.ms103"
     xiaomi_prefix: Optional[str] = None
     garmin_prefix: Optional[str] = None
@@ -45,6 +50,9 @@ class UserModel:
         # 决策 1：users.json 无密化——空密码不写入（避免残留空键）
         if self.password:
             result["password"] = self.password
+
+        if self.nickname:
+            result["nickname"] = self.nickname
 
         if self.xiaomi_prefix:
             result["xiaomi_prefix"] = self.xiaomi_prefix
@@ -104,6 +112,7 @@ class UserModel:
         return cls(
             username=data.get("username", ""),
             password=data.get("password", ""),
+            nickname=data.get("nickname"),
             model=data.get("model", "yunmai.scales.ms103"),
             xiaomi_prefix=data.get("xiaomi_prefix"),
             garmin_prefix=data.get("garmin_prefix"),

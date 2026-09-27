@@ -21,7 +21,7 @@ sys.path.append(str(Path(__file__).parent.parent))
 
 from core.sync_service import SyncOrchestrator, SyncProgress
 from core.models import UserModel
-from core.account import mask_account
+from core.account import mask_account, resolve_display_name, find_user_by_username
 
 logger = logging.getLogger(__name__)
 
@@ -339,7 +339,7 @@ class MainWindow(QMainWindow):
                 last_sync = user.last_sync if user.last_sync else "从未同步"
                 garmin_domain = user.garmin.domain if user.garmin else "N/A"
 
-                text = f"""{mask_account(user.username)}
+                text = f"""{resolve_display_name(user, users)}
 📱 {user.model} | 🏷️ {garmin_domain} | {status}
 🕒 最后同步: {last_sync}"""
 
@@ -397,10 +397,11 @@ class MainWindow(QMainWindow):
                     filter=None
                 )
 
-                # 构建 UserModel（脱敏前缀可选，空则回退账号哈希）
+                # 构建 UserModel（nickname 纯显示用；脱敏前缀可选，空则回退账号哈希）
                 user = UserModel(
                     username=user_data.get("username", ""),
                     password=user_data.get("password", ""),
+                    nickname=user_data.get("nickname") or None,
                     model=user_data.get("model", "yunmai.scales.ms103"),
                     token=token_data,
                     garmin=garmin_config,
@@ -416,15 +417,16 @@ class MainWindow(QMainWindow):
                 if success:
                     # 刷新用户列表
                     self.load_users()
+                    display = resolve_display_name(user, self.orchestrator.list_users())
                     QMessageBox.information(
                         self,
                         "添加成功",
-                        f"用户 {mask_account(user.username)} 已成功添加！\n\n"
+                        f"用户 {display} 已成功添加！\n\n"
                         f"小米账号: {mask_account(user.username)}\n"
                         f"设备型号: {user.model}\n"
                         f"Garmin 账号: {mask_account(user.garmin.email)}"
                     )
-                    self.log_message(f"✅ 成功添加用户: {mask_account(user.username)}")
+                    self.log_message(f"✅ 成功添加用户: {display}")
                 else:
                     QMessageBox.warning(
                         self,
@@ -470,13 +472,21 @@ class MainWindow(QMainWindow):
             for user in users:
                 self.start_sync(user.username)
 
+    def _display_name(self, username: str) -> str:
+        """用户显示名（nickname → 脱敏兜底 → 重名消歧，统一走 resolve_display_name）"""
+        users = self.orchestrator.list_users()
+        user = find_user_by_username(users, username)
+        if user is None:
+            return mask_account(username)
+        return resolve_display_name(user, users)
+
     def start_sync(self, username: str):
         """启动同步"""
         if username in self.sync_workers and self.sync_workers[username].isRunning():
-            self.log_message(f"⚠️ 用户 {mask_account(username)} 正在同步中")
+            self.log_message(f"⚠️ 用户 {self._display_name(username)} 正在同步中")
             return
 
-        self.log_message(f"🚀 开始同步用户: {mask_account(username)}")
+        self.log_message(f"🚀 开始同步用户: {self._display_name(username)}")
         self.progress_bar.setVisible(True)
         self.progress_bar.setRange(0, 100)
         self.progress_bar.setValue(0)
@@ -526,10 +536,10 @@ class MainWindow(QMainWindow):
         self.update_syncing_count()
 
         if success:
-            self.log_message(f"✅ 用户 {mask_account(username)} 同步完成")
+            self.log_message(f"✅ 用户 {self._display_name(username)} 同步完成")
             self.progress_bar.setValue(100)
         else:
-            self.log_message(f"❌ 用户 {mask_account(username)} 同步失败: {message}")
+            self.log_message(f"❌ 用户 {self._display_name(username)} 同步失败: {message}")
 
         # 延迟隐藏进度条
         QTimer.singleShot(2000, lambda: self.progress_bar.setVisible(False))
@@ -811,7 +821,7 @@ class MainWindow(QMainWindow):
             # 决策 4：users.json 不再存密码，缺失时弹窗输入（仅内存中使用）
             if not password_param:
                 from gui.auth_dialogs import PasswordDialog
-                dialog = PasswordDialog(username_param, service="小米", parent=self)
+                dialog = PasswordDialog(self._display_name(username), service="小米", parent=self)
                 if dialog.exec() != 1:
                     return {"success": False, "error": "用户取消密码输入"}
                 password_param = dialog.get_password()
@@ -987,8 +997,8 @@ class MainWindow(QMainWindow):
             email = details.get("email", "")
             logger.info(f"[DEBUG] _handle_garmin_mfa 被调用, email={email}")
 
-            # 显示 MFA 对话框
-            dialog = GarminMfaDialog(email, self)
+            # 显示 MFA 对话框（显示名统一走 resolve_display_name）
+            dialog = GarminMfaDialog(self._display_name(username), self)
             logger.info(f"[DEBUG] GarminMfaDialog 已创建，准备显示")
 
             result_code = dialog.exec()
@@ -1019,8 +1029,8 @@ class MainWindow(QMainWindow):
         try:
             from gui.auth_dialogs import PasswordDialog
 
-            account = details.get("email") or details.get("username") or username
-            dialog = PasswordDialog(account, service=service, parent=self)
+            # 显示名统一走 resolve_display_name（nickname → 脱敏兜底）
+            dialog = PasswordDialog(self._display_name(username), service=service, parent=self)
             if dialog.exec() == 1:  # Accepted
                 return {"password": dialog.get_password()}
             return {"password": ""}
@@ -1034,4 +1044,4 @@ class MainWindow(QMainWindow):
         if worker and worker.waiting_for_input:
             worker.provide_input(result)
         else:
-            logger.warning(f"无法发送登录结果到用户 {mask_account(username)}: 工作线程不存在或未在等待输入")
+            logger.warning(f"无法发送登录结果到用户 {self._display_name(username)}: 工作线程不存在或未在等待输入")

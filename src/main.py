@@ -161,7 +161,11 @@ def main():
         garmin_email = garmin_config.get("email") if garmin_config else ""
         garmin_prefix = resolve_prefix(user.get("garmin_prefix"), garmin_email)
 
-        logger.info(f"Processing user: {xiaomi_prefix}")
+        # 显示名统一走 resolve_display_name（昵称 → 脱敏兜底 → 重名消歧）
+        from core.account import resolve_display_name
+        display = resolve_display_name(user, users)
+
+        logger.info(f"Processing user: {display}")
 
         # 一次性迁移：旧版 users.json 内嵌 token → 独立会话文件
         migrate_token_from_users_json(config_mgr, user, xiaomi_prefix)
@@ -176,7 +180,7 @@ def main():
         if not token:
             # token 缺失 → 终端输入密码重新认证（非交互环境报错退出）
             logger.warning(
-                f"小米 token 缺失/无效（{xiaomi_prefix}），需要输入密码重新认证")
+                f"小米 token 缺失/无效（{display}），需要输入密码重新认证")
             try:
                 password = prompt_password("小米密码")
             except NonInteractiveError as e:
@@ -190,7 +194,7 @@ def main():
                 login.close()
                 password = None  # 决策 4：认证后丢弃
             if not token:
-                logger.error(f"小米认证失败，跳过 {xiaomi_prefix}")
+                logger.error(f"小米认证失败，跳过 {display}")
                 continue
             save_xiaomi_auth(xiaomi_prefix, token, xiaomi_account=username)
             logger.info(f"小米 token 已保存到会话文件（{xiaomi_prefix}）")
@@ -327,7 +331,7 @@ def main():
                                             g_client = None
                                     else:
                                         logger.warning(
-                                            f"[WARN] Garmin credentials missing for {xiaomi_prefix}. Skipping sync.")
+                                            f"[WARN] Garmin credentials missing for {display}. Skipping sync.")
                                         g_client = None
 
                                 # Upload if client is available
@@ -359,7 +363,7 @@ def main():
                         # Print upload summary
                         if args.sync and total_chunks > 0:
                             logger.info("=" * 80)
-                            logger.info(f"[INFO] 上传汇总 - {xiaomi_prefix}")
+                            logger.info(f"[INFO] 上传汇总 - {display}")
                             logger.info(f"  总批次数: {total_chunks}")
                             logger.info(
                                 f"  [OK] 成功: {upload_results['success']}")
@@ -380,11 +384,11 @@ def main():
                     logger.warning("No weight data found")
 
             except Exception as e:
-                logger.error(f"Failed to process data for {xiaomi_prefix}: {e}")
+                logger.error(f"Failed to process data for {display}: {e}")
                 logger.exception("Detailed error:")
         else:
             logger.warning(
-                f"No valid token for {xiaomi_prefix}. Please run the login tool to generate a token.")
+                f"No valid token for {display}. Please run the login tool to generate a token.")
             logger.info("Run: python src/xiaomi/login.py --config users.json")
         logger.info("Sleep 5 seconds")
         time.sleep( 5 )

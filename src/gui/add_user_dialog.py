@@ -71,20 +71,33 @@ class XiaomiPage(QWizardPage):
         device_layout.addWidget(device_label)
         device_layout.addWidget(self.device_combo)
         layout.addLayout(device_layout)
-        # 脱敏前缀输入（可选）
+
+        # 昵称输入（可选，这一组（小米+佳明）的显示名）
+        nickname_layout = QHBoxLayout()
+        nickname_label = QLabel("昵称:")
+        nickname_label.setMinimumWidth(120)
+        self.nickname_field = QLineEdit()
+        self.nickname_field.setPlaceholderText("可选，这一组（小米+佳明）的显示名，如\"我/老婆\"")
+        self.nickname_field.setMinimumHeight(35)
+        nickname_layout.addWidget(nickname_label)
+        nickname_layout.addWidget(self.nickname_field)
+        layout.addLayout(nickname_layout)
+
+        # 脱敏前缀输入（可选，留空自动用昵称）
         prefix_layout = QHBoxLayout()
         prefix_label = QLabel("脱敏前缀:")
         prefix_label.setMinimumWidth(120)
         self.prefix_field = QLineEdit()
-        self.prefix_field.setPlaceholderText("可选，默认 xiaomi（用于文件名/日志，不填则用账号哈希）")
+        self.prefix_field.setPlaceholderText("可选，留空自动用昵称；用于文件名，创建后勿改")
         self.prefix_field.setMinimumHeight(35)
         prefix_layout.addWidget(prefix_label)
         prefix_layout.addWidget(self.prefix_field)
         layout.addLayout(prefix_layout)
-        # 提示信息
+
+        # 提示信息（一行）
         hint_label = QLabel(
-            "提示: 密码仅用于本次登录验证，不会保存。\n"
-            "登录成功后凭证保存在本地数据目录，之后同步无需再输入密码。"
+            "提示: 昵称是这一组（小米+佳明）的显示名，与具体账号无关；"
+            "前缀用于文件名（创建后勿改）。密码不会保存。"
         )
         hint_label.setWordWrap(True)
         hint_label.setStyleSheet("color: #666; font-size: 12px; padding: 10px;")
@@ -97,6 +110,7 @@ class XiaomiPage(QWizardPage):
         self.registerField("xiaomi_username*", self.username_field)
         self.registerField("xiaomi_password*", self.password_field)
         self.registerField("xiaomi_device", self.device_combo, "currentData")
+        self.registerField("nickname", self.nickname_field)
         self.registerField("xiaomi_prefix", self.prefix_field)
 
         # 连接输入验证信号,实时更新"下一步"按钮状态
@@ -117,6 +131,7 @@ class XiaomiPage(QWizardPage):
         self.wizard().xiaomi_data = {
             "username": username,
             "password": password,
+            "nickname": nickname,
             "model": model,
             "token": token_data,
             "xiaomi_prefix": prefix
@@ -127,10 +142,30 @@ class XiaomiPage(QWizardPage):
         username = self.username_field.text().strip()
         password = self.password_field.text().strip()
         model = self.device_combo.currentData()
+        nickname = self.nickname_field.text().strip()
         prefix = self.prefix_field.text().strip()
 
         if not username or not password:
             return False
+
+        # 昵称校验：限长 20
+        if len(nickname) > 20:
+            QMessageBox.warning(self.wizard(), "昵称过长", "昵称最长 20 个字符，请缩短。")
+            return False
+
+        # 昵称查重（输入时拦截）
+        if nickname:
+            from core.account import find_duplicate_nickname
+            existing = self.wizard().config_manager.get_users()
+            if find_duplicate_nickname(nickname, existing):
+                QMessageBox.warning(
+                    self.wizard(), "昵称重复",
+                    f"昵称 \"{nickname}\" 已被其他用户使用，请换一个。")
+                return False
+
+        # prefix 留空 → 自动用昵称（创建那一刻固化；无昵称则留空走账号哈希）
+        if not prefix and nickname:
+            prefix = nickname
 
         # 执行小米登录验证
         from xiaomi.login import MiCloudSync
@@ -425,7 +460,7 @@ class GarminPage(QWizardPage):
         prefix_label = QLabel("脱敏前缀:")
         prefix_label.setMinimumWidth(120)
         self.prefix_field = QLineEdit()
-        self.prefix_field.setPlaceholderText("可选，默认 garmin（用于会话目录/日志，不填则用账号哈希）")
+        self.prefix_field.setPlaceholderText("可选，留空自动用昵称；用于会话目录，创建后勿改")
         self.prefix_field.setMinimumHeight(35)
         prefix_layout.addWidget(prefix_label)
         prefix_layout.addWidget(self.prefix_field)
@@ -471,6 +506,11 @@ class GarminPage(QWizardPage):
         if not email or not password:
             return False
 
+        # garmin_prefix 留空 → 自动用昵称（与小米侧同一组，同一标识）
+        if not prefix:
+            xiaomi_data = self.wizard().xiaomi_data or {}
+            prefix = xiaomi_data.get("xiaomi_prefix") or ""
+
         # 保存数据
         self.wizard().garmin_data = {
             "email": email,
@@ -505,7 +545,7 @@ class AddUserDialog(QWizard):
         """初始化 UI"""
         # 设置窗口属性
         self.setWindowTitle("添加用户")
-        self.setMinimumSize(600, 500)
+        self.setMinimumSize(600, 580)
         self.setWizardStyle(QWizard.WizardStyle.ModernStyle)
         # 禁用帮助按钮 (PyQt6 使用 HaveHelpButton)
         self.setOption(QWizard.WizardOption.HaveHelpButton, False)

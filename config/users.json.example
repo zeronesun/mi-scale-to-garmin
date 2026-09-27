@@ -4,23 +4,34 @@
     //
     // 本文件只存【身份与偏好】，不含密码、不含 token（无密文件，可安全备份/分享）
     // 密码：仅在 token 缺失/失效时终端输入（getpass 隐藏），认证后丢弃、不落盘
-    // 小米 token：存 data/xiaomi_auth_{xiaomi_prefix}.json（首次认证后自动生成）
-    // 佳明 token：存 data/.garth/{garmin_prefix}/（garth 会话目录，首次认证后自动生成）
+    // 小米 token：存 data/auth/xiaomi_auth_{xiaomi_prefix}.json（首次认证后自动生成）
+    // 佳明 token：存 data/auth/garmin/{garmin_prefix}/（garth 会话目录，首次认证后自动生成）
     // 空字段/占位符（your_xxx）会在启动时引导式提示输入并写回 users.json
+    //
+    // 三层标识分工：
+    //   nickname —— 纯显示名（这一组（小米+佳明）的显示名，永不参与文件名/路径）
+    //   prefix   —— 文件名/目录标识（创建后固定；留空自动用昵称，再无则账号哈希前 8 位）
+    //   username —— 功能键（登录认证用，永不显示明文）
+    //
+    // 多用户：users 是数组，一个元素 = 一组（一个小米 + 一个佳明 = 一个人），
+    // 复制一个元素块即可；完整示例见 README「4. 配置 → 多用户」
     "users": [
         {
+            // 显示名（可选）：这一组（小米+佳明）的显示名，与具体账号无关
+            // 仅用于界面/日志显示，不参与文件名/路径；建议 ≤20 字符，勿与他人重复
+            "nickname": "我",
             // 脱敏标识（可选）：用于小米侧输出文件名和日志
-            // 不填则回退到账号 SHA256 前 8 位（不会用明文账号）
-            // 效果：data/body_data_my_xiaomi.json, data/garmin-fit/body_my_xiaomi_*.fit
-            "xiaomi_prefix": "my_xiaomi",
+            // 留空自动用 nickname（创建那一刻固化）；再无则回退账号 SHA256 前 8 位
+            // 效果：data/body/body_data_我.json, data/fit/body_我_<时间戳>_<序号>.fit
+            "xiaomi_prefix": "我",
             // 小米账号（手机号/邮箱），用于登录认证
             "username": "your_xiaomi_username",
             // 小米体脂秤设备型号
             "model": "yunmai.scales.ms103",
             // 脱敏标识（可选）：用于佳明侧会话目录和日志
-            // 不填则回退到邮箱 SHA256 前 8 位（不会用明文邮箱）
-            // 效果：data/.garth/my_garmin/
-            "garmin_prefix": "my_garmin",
+            // 留空自动用 nickname（与小米侧同一组、同一标识）；再无则回退邮箱 SHA256 前 8 位
+            // 效果：data/auth/garmin/我/
+            "garmin_prefix": "我",
             // Garmin 账号配置（无密码字段）
             "garmin": {
                 "email": "your_garmin_email",

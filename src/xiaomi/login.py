@@ -449,10 +449,11 @@ def main():
 
         # 决策 4：密码仅终端 getpass 输入（users.json 不再存密码），认证后丢弃
         import getpass
-        from core.account import mask_account
-        password = getpass.getpass(f"小米密码（{mask_account(username)}）: ")
+        from core.account import resolve_display_name
+        display = resolve_display_name(user, users)
+        password = getpass.getpass(f"小米密码（{display}）: ")
         if not password:
-            print(f"[WARN] 未输入密码，跳过 {mask_account(username)}")
+            print(f"[WARN] 未输入密码，跳过 {display}")
             continue
 
         # 脱敏前缀：配置了用配置，未配置回退到账号短哈希（B）
@@ -472,7 +473,7 @@ def main():
                                     xiaomi_account=username)
                 print(f"[OK] Token saved for {xiaomi_prefix}")
             else:
-                print(f"[ERR] Login failed for {mask_account(username)}")
+                print(f"[ERR] Login failed for {display}")
 
         except Exception as e:
             print(f"[ERR] Error during login: {e}")

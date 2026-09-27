@@ -92,7 +92,7 @@ class SyncOrchestrator:
                     stage="error",
                     current=0,
                     total=100,
-                    message=f"❌ 用户不存在: {mask_account(username)}",
+                    message=f"❌ 用户不存在: {mask_account(username)}（请检查配置）",
                     timestamp=datetime.datetime.now().strftime("%H:%M:%S"),
                     username=username
                 )
