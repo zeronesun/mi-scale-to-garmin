@@ -40,3 +40,24 @@ def resolve_prefix(prefix: Optional[str], account: str) -> str:
         return prefix
     # 未配置 → 短哈希兜底（B）：永不回退明文账号（铁律 3）
     return short_account_hash(account)
+
+
+def mask_account(account: str) -> str:
+    """
+    账号脱敏显示（GUI 列表/日志/对话框用，铁律 3）
+
+    - 11 位手机号：138****1234
+    - 邮箱：s***@example.com（保留域名，便于区分多账号）
+    - 其他：长度 >4 时首 2 尾 2（ab****yz），否则全掩码
+    """
+    a = (account or "").strip()
+    if not a:
+        return ""
+    if a.isdigit() and len(a) == 11:
+        return f"{a[:3]}****{a[-4:]}"
+    if "@" in a:
+        name, _, domain = a.partition("@")
+        return f"{name[:1]}***@{domain}" if name else f"***@{domain}"
+    if len(a) > 4:
+        return f"{a[:2]}****{a[-2:]}"
+    return "****"

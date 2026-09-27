@@ -38,7 +38,8 @@ class ConfigManager:
                 return
         
         # If user not found (should generally be found if config drives the loop)
-        print(f"User {username} not found in config to update token.")
+        from core.account import mask_account
+        print(f"User {mask_account(username)} not found in config to update token.")
 
     def get_user_token(self, username: str) -> Optional[Dict]:
         for user in self.config_data.get("users", []):

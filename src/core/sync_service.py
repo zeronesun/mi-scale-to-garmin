@@ -21,6 +21,7 @@ from xiaomi.client import XiaomiClient, fetch_merged_weights
 from garmin.client import GarminClient
 from garmin.fit_generator import create_weight_fit_file
 from utils.paths import get_app_data_dir, get_garmin_auth_dir, get_output_dir
+from core.account import mask_account
 
 
 class SyncOrchestrator:
@@ -91,7 +92,7 @@ class SyncOrchestrator:
                     stage="error",
                     current=0,
                     total=100,
-                    message=f"❌ 用户不存在: {username}",
+                    message=f"❌ 用户不存在: {mask_account(username)}",
                     timestamp=datetime.datetime.now().strftime("%H:%M:%S"),
                     username=username
                 )

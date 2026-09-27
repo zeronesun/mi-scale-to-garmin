@@ -11,6 +11,8 @@ from PyQt6.QtCore import Qt
 from typing import Optional
 import io
 
+from core.account import mask_account
+
 
 class CaptchaDialog(QDialog):
     """验证码输入对话框"""
@@ -245,7 +247,7 @@ class PasswordDialog(QDialog):
         title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(title_label)
 
-        info_label = QLabel(f"账号: {account}")
+        info_label = QLabel(f"账号: {mask_account(account)}")
         info_label.setStyleSheet("color: #666; font-size: 12px;")
         info_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(info_label)
@@ -324,8 +326,8 @@ class GarminMfaDialog(QDialog):
         title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(title_label)
 
-        # 账号信息
-        account_label = QLabel(f"账号: {self.email}")
+        # 账号信息（脱敏显示，self.email 保留明文仅供功能使用）
+        account_label = QLabel(f"账号: {mask_account(self.email)}")
         account_label.setStyleSheet("color: #333; font-size: 13px;")
         account_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(account_label)

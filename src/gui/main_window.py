@@ -21,6 +21,7 @@ sys.path.append(str(Path(__file__).parent.parent))
 
 from core.sync_service import SyncOrchestrator, SyncProgress
 from core.models import UserModel
+from core.account import mask_account
 
 logger = logging.getLogger(__name__)
 
@@ -338,7 +339,7 @@ class MainWindow(QMainWindow):
                 last_sync = user.last_sync if user.last_sync else "从未同步"
                 garmin_domain = user.garmin.domain if user.garmin else "N/A"
 
-                text = f"""{user.username}
+                text = f"""{mask_account(user.username)}
 📱 {user.model} | 🏷️ {garmin_domain} | {status}
 🕒 最后同步: {last_sync}"""
 
@@ -418,20 +419,20 @@ class MainWindow(QMainWindow):
                     QMessageBox.information(
                         self,
                         "添加成功",
-                        f"用户 {user.username} 已成功添加！\n\n"
-                        f"小米账号: {user.username}\n"
+                        f"用户 {mask_account(user.username)} 已成功添加！\n\n"
+                        f"小米账号: {mask_account(user.username)}\n"
                         f"设备型号: {user.model}\n"
-                        f"Garmin 账号: {user.garmin.email}"
+                        f"Garmin 账号: {mask_account(user.garmin.email)}"
                     )
-                    self.log_message(f"✅ 成功添加用户: {user.username}")
+                    self.log_message(f"✅ 成功添加用户: {mask_account(user.username)}")
                 else:
                     QMessageBox.warning(
                         self,
                         "添加失败",
-                        f"添加用户失败:\n{user.username}\n\n"
+                        f"添加用户失败:\n{mask_account(user.username)}\n\n"
                         "可能用户名已存在或配置文件写入失败。"
                     )
-                    self.log_message(f"❌ 添加用户失败: {user.username}")
+                    self.log_message(f"❌ 添加用户失败: {mask_account(user.username)}")
 
             except Exception as e:
                 logger.exception("添加用户时发生错误")
@@ -472,10 +473,10 @@ class MainWindow(QMainWindow):
     def start_sync(self, username: str):
         """启动同步"""
         if username in self.sync_workers and self.sync_workers[username].isRunning():
-            self.log_message(f"⚠️ 用户 {username} 正在同步中")
+            self.log_message(f"⚠️ 用户 {mask_account(username)} 正在同步中")
             return
 
-        self.log_message(f"🚀 开始同步用户: {username}")
+        self.log_message(f"🚀 开始同步用户: {mask_account(username)}")
         self.progress_bar.setVisible(True)
         self.progress_bar.setRange(0, 100)
         self.progress_bar.setValue(0)
@@ -525,10 +526,10 @@ class MainWindow(QMainWindow):
         self.update_syncing_count()
 
         if success:
-            self.log_message(f"✅ 用户 {username} 同步完成")
+            self.log_message(f"✅ 用户 {mask_account(username)} 同步完成")
             self.progress_bar.setValue(100)
         else:
-            self.log_message(f"❌ 用户 {username} 同步失败: {message}")
+            self.log_message(f"❌ 用户 {mask_account(username)} 同步失败: {message}")
 
         # 延迟隐藏进度条
         QTimer.singleShot(2000, lambda: self.progress_bar.setVisible(False))
@@ -771,7 +772,10 @@ class MainWindow(QMainWindow):
         details = progress.details
         action = details.get("action")
 
-        logger.info(f"[DEBUG] handle_user_input_request 被调用, action={action}, details={details}")
+        # 日志脱敏：details 可能含明文账号（铁律 3）
+        safe_details = {k: (mask_account(v) if k in ("username", "email") and isinstance(v, str) else v)
+                        for k, v in details.items()}
+        logger.info(f"[DEBUG] handle_user_input_request 被调用, action={action}, details={safe_details}")
 
         if action == "xiaomi_login":
             # 直接在主线程中处理登录(同步方式)
@@ -1030,4 +1034,4 @@ class MainWindow(QMainWindow):
         if worker and worker.waiting_for_input:
             worker.provide_input(result)
         else:
-            logger.warning(f"无法发送登录结果到用户 {username}: 工作线程不存在或未在等待输入")
+            logger.warning(f"无法发送登录结果到用户 {mask_account(username)}: 工作线程不存在或未在等待输入")
