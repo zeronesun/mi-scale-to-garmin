@@ -393,12 +393,14 @@ def main():
         logger.info("Sleep 5 seconds")
         time.sleep( 5 )
 
-    # 结束后询问：是否将 users.json 恢复为默认模板（用于反复测试引导式初始化）
-    _offer_reset_to_default(args.config)
+    # 结束后询问：是否将 users.json 恢复为默认模板（开发期测试引导式初始化用，
+    # 打包版不显示——普通用户没有这个需求，还会造成误操作清空配置的隐患）
+    if not getattr(sys, 'frozen', False):
+        _offer_reset_to_default(args.config)
 
 
 def _offer_reset_to_default(config_path):
-    """询问是否把 users.json 恢复为默认模板；恢复前先把当前文件备份到 .trash/"""
+    """询问是否把 users.json 恢复为默认模板（仅开发版）；恢复前先把当前文件备份到 .trash/"""
     from core.bootstrap import is_interactive
     if not is_interactive():
         return
