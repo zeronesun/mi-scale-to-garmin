@@ -8,7 +8,21 @@ import sys
 from pathlib import Path
 
 
-def build_gui():
+def _distpath(release: bool = False) -> str:
+    """
+    产物输出目录：dist/<dev|release>/<platform>/
+
+    - dev：本地开发验证产物（默认）
+    - release：发布候选产物（--release）
+    - platform：windows / linux / darwin（自动检测，PyInstaller 不支持交叉编译）
+    """
+    stage = 'release' if release else 'dev'
+    # sys.platform 归一化：win32→windows，darwin→macos，linux 不变
+    platform = {'win32': 'windows', 'darwin': 'macos'}.get(sys.platform, sys.platform)
+    return f'dist/{stage}/{platform}'
+
+
+def build_gui(release: bool = False):
     """打包 GUI 版本"""
     print("=" * 60)
     print("开始打包 GUI 版本...")
@@ -42,6 +56,7 @@ def build_gui():
         '--onedir',    # 打包成目录（启动更快）
         '--clean',     # 清理缓存
         '--noconfirm', # 不询问确认
+        f'--distpath={_distpath(release)}',
         '--add-data=src:src',
         '--runtime-hook=pyi_rth_pyqt6.py',  # 添加 runtime hook 修复 inspect 问题
     ]
@@ -76,11 +91,11 @@ def build_gui():
     print()
     print("=" * 60)
     print("[OK] GUI 版本打包完成！")
-    print("输出文件: dist/mi-scale-to-garmin-gui/mi-scale-to-garmin-gui.exe")
+    print(f"输出目录: {_distpath(release)}/mi-scale-to-garmin-gui/")
     print("=" * 60)
 
 
-def build_cli():
+def build_cli(release: bool = False):
     """打包 CLI 版本"""
     print("=" * 60)
     print("开始打包 CLI 版本...")
@@ -108,6 +123,7 @@ def build_cli():
         '--onefile',
         '--clean',
         '--noconfirm',
+        f'--distpath={_distpath(release)}',
         '--add-data=src:src',
         '--runtime-hook=pyi_rth_pyqt6.py',  # 添加 runtime hook 修复 inspect 问题
     ]
@@ -137,11 +153,11 @@ def build_cli():
     print()
     print("=" * 60)
     print("[OK] CLI 版本打包完成！")
-    print("输出文件: dist/mi-scale-to-garmin-cli")
+    print(f"输出文件: {_distpath(release)}/mi-scale-to-garmin-cli")
     print("=" * 60)
 
 
-def build_all():
+def build_all(release: bool = False):
     """打包所有版本"""
     print()
     print("╔" + "=" * 58 + "╗")
@@ -171,21 +187,21 @@ def build_all():
     choice = input("请输入选项 (0-3): ").strip()
 
     if choice == '1':
-        build_gui()
+        build_gui(release)
     elif choice == '2':
-        build_cli()
+        build_cli(release)
     elif choice == '3':
         print()
         print("开始打包所有版本...")
         print()
-        build_gui()
+        build_gui(release)
         print()
-        build_cli()
+        build_cli(release)
         print()
         print("=" * 60)
         print("[OK] 所有版本打包完成！")
-        print("  - GUI: dist/mi-scale-to-garmin-gui/mi-scale-to-garmin-gui.exe")
-        print("  - CLI: dist/mi-scale-to-garmin-cli")
+        print(f"  - GUI: {_distpath(release)}/mi-scale-to-garmin-gui/")
+        print(f"  - CLI: {_distpath(release)}/mi-scale-to-garmin-cli")
         print("=" * 60)
     elif choice == '0':
         print("退出")
@@ -194,22 +210,27 @@ def build_all():
 
 
 def main():
-    """入口：支持命令行参数（gui|cli|all），无参数时进入交互菜单"""
-    if len(sys.argv) > 1:
-        target = sys.argv[1].strip().lower()
+    """入口：支持命令行参数（gui|cli|all）+ --release，无参数时进入交互菜单
+
+    产物目录：dist/<dev|release>/<platform>/（platform 自动检测）
+    """
+    args = [a for a in sys.argv[1:] if a != '--release']
+    release = '--release' in sys.argv[1:]
+    if args:
+        target = args[0].strip().lower()
         if target == 'gui':
-            build_gui()
+            build_gui(release)
         elif target == 'cli':
-            build_cli()
+            build_cli(release)
         elif target == 'all':
-            build_gui()
+            build_gui(release)
             print()
-            build_cli()
+            build_cli(release)
         else:
-            print(f"[ERR] 无效选项: {sys.argv[1]}（可用: gui | cli | all）")
+            print(f"[ERR] 无效选项: {args[0]}（可用: gui | cli | all，加 --release 输出到 dist/release/）")
             sys.exit(1)
     else:
-        build_all()
+        build_all(release)
 
 
 if __name__ == '__main__':

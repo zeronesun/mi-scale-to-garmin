@@ -32,6 +32,7 @@ config.yaml
 /webdav-fit
 /coros-fit
 /.venv
+/.venv-linux
 
 # Generated body data
 body_data_*.json
