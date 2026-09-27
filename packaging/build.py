@@ -4,6 +4,7 @@ PyInstaller 打包脚本
 """
 import PyInstaller.__main__
 import os
+import shutil
 import sys
 from pathlib import Path
 
@@ -33,10 +34,14 @@ def _distpath(release: bool = False) -> str:
     return f'dist/{stage}/{platform}'
 
 
-def build_gui(release: bool = False):
-    """打包 GUI 版本"""
+def build_gui(release: bool = False, onefile: bool = True):
+    """打包 GUI 版本
+
+    onefile=True（默认）：单文件 exe，分发直观，冷启动 15~20s（解压到 %TEMP%）
+    onefile=False：onedir 目录模式（exe + _internal/），启动快，需整包分发
+    """
     print("=" * 60)
-    print("开始打包 GUI 版本...")
+    print(f"开始打包 GUI 版本（{'onefile 单文件' if onefile else 'onedir 目录'}）...")
     print("=" * 60)
 
     # 精简的隐藏导入列表（优化启动速度）
@@ -64,7 +69,7 @@ def build_gui(release: bool = False):
     args = [
         '--name=mi-scale-to-garmin-gui',
         '--windowed',  # 无控制台窗口
-        '--onedir',    # 打包成目录（启动更快）
+        '--onefile' if onefile else '--onedir',  # 形态：默认单文件，--onedir 切目录模式
         '--clean',     # 清理缓存
         '--noconfirm', # 不询问确认
         f'--distpath={_distpath(release)}',
@@ -104,7 +109,33 @@ def build_gui(release: bool = False):
     print()
     print("=" * 60)
     print("[OK] GUI 版本打包完成！")
-    print(f"输出目录: {_distpath(release)}/mi-scale-to-garmin-gui/")
+    if onefile:
+        print(f"输出文件: {_distpath(release)}/mi-scale-to-garmin-gui.exe")
+    else:
+        # onedir 分发形态 = 整包 zip（含说明文件），中间文件夹不保留
+        dist_dir = Path(_distpath(release))
+        folder = dist_dir / 'mi-scale-to-garmin-gui'
+        readme = folder / 'onedirREAD.md'
+        readme.write_text(
+            "# mi-scale-to-garmin GUI（onedir 版）\n"
+            "\n"
+            "这是一个**完整文件夹**程序，不是单个文件。文件夹内容：\n"
+            "\n"
+            "- `mi-scale-to-garmin-gui.exe` — 启动器\n"
+            "- `_internal/` — 运行依赖（Python 解释器 + 全部库）\n"
+            "- `onedirREAD.md` — 本说明文件\n"
+            "\n"
+            "## 使用\n"
+            "\n"
+            "1. 将**整个文件夹**解压到任意位置（保持文件夹结构完整）\n"
+            "2. 双击文件夹内的 `mi-scale-to-garmin-gui.exe` 运行\n"
+            "3. 移动时请移动**整个文件夹**，勿单独复制 exe"
+            "（单独复制 exe 会报 `Failed to load Python DLL`）\n",
+            encoding='utf-8')
+        zip_base = dist_dir / 'mi-scale-to-garmin-gui-onedir'
+        shutil.make_archive(str(zip_base), 'zip', root_dir=dist_dir, base_dir=folder.name)
+        shutil.rmtree(folder)
+        print(f"输出文件: {_distpath(release)}/mi-scale-to-garmin-gui-onedir.zip（整包，含 onedirREAD.md）")
     print("=" * 60)
 
 
@@ -172,8 +203,8 @@ def build_cli(release: bool = False):
     print("=" * 60)
 
 
-def build_all(release: bool = False):
-    """打包所有版本"""
+def build_all(release: bool = False, onefile: bool = True):
+    """打包所有版本（交互菜单，GUI 形态跟随 onefile 参数，默认单文件）"""
     print()
     print("╔" + "=" * 58 + "╗")
     print("║" + " " * 10 + "mi-scale-to-garmin 打包工具" + " " * 13 + "║")
@@ -202,20 +233,21 @@ def build_all(release: bool = False):
     choice = input("请输入选项 (0-3): ").strip()
 
     if choice == '1':
-        build_gui(release)
+        build_gui(release, onefile)
     elif choice == '2':
         build_cli(release)
     elif choice == '3':
         print()
         print("开始打包所有版本...")
         print()
-        build_gui(release)
+        build_gui(release, onefile)
         print()
         build_cli(release)
         print()
         print("=" * 60)
         print("[OK] 所有版本打包完成！")
-        print(f"  - GUI: {_distpath(release)}/mi-scale-to-garmin-gui/")
+        gui_out = f"{_distpath(release)}/mi-scale-to-garmin-gui.exe" if onefile else f"{_distpath(release)}/mi-scale-to-garmin-gui/"
+        print(f"  - GUI: {gui_out}")
         print(f"  - CLI: {_distpath(release)}/mi-scale-to-garmin-cli")
         print("=" * 60)
     elif choice == '0':
@@ -225,30 +257,32 @@ def build_all(release: bool = False):
 
 
 def main():
-    """入口：支持命令行参数（gui|cli|all）+ --release，无参数时进入交互菜单
+    """入口：支持命令行参数（gui|cli|all）+ --release + --onefile/--onedir，无参数时进入交互菜单
 
     产物目录：dist/<dev|release>/<platform>/（platform 自动检测）
+    GUI 形态：默认 onefile 单文件；--onedir 显式切目录模式（--onefile 与默认等价，仅为显式）
     """
     # 固定工作目录为项目根：保证 src/、dist/ 等相对路径与调用位置无关
     os.chdir(PROJECT_ROOT)
 
-    args = [a for a in sys.argv[1:] if a != '--release']
+    args = [a for a in sys.argv[1:] if a not in ('--release', '--onefile', '--onedir')]
     release = '--release' in sys.argv[1:]
+    onefile = '--onedir' not in sys.argv[1:]  # 默认单文件；出现 --onedir 则切目录模式
     if args:
         target = args[0].strip().lower()
         if target == 'gui':
-            build_gui(release)
+            build_gui(release, onefile)
         elif target == 'cli':
             build_cli(release)
         elif target == 'all':
-            build_gui(release)
+            build_gui(release, onefile)
             print()
             build_cli(release)
         else:
-            print(f"[ERR] 无效选项: {args[0]}（可用: gui | cli | all，加 --release 输出到 dist/release/）")
+            print(f"[ERR] 无效选项: {args[0]}（可用: gui | cli | all，加 --release 输出到 dist/release/，加 --onedir 切 GUI 目录模式）")
             sys.exit(1)
     else:
-        build_all(release)
+        build_all(release, onefile)
 
 
 if __name__ == '__main__':

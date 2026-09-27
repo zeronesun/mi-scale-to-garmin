@@ -18,22 +18,26 @@
 ```bash
 pip install -r requirements/build.txt   # PyInstaller 等（GUI 另需 requirements/gui.txt）
 
-python packaging/build.py gui           # GUI（onedir 文件夹）
-python packaging/build.py cli           # CLI（onefile 单文件）
-python packaging/build.py all           # 全部
-python packaging/build.py all --release # 输出到 dist/release/（默认 dist/dev/）
+python packaging/build.py gui              # GUI（默认 onefile 单文件）
+python packaging/build.py gui --onedir     # GUI（onedir 整包 zip，显式切换）
+python packaging/build.py cli              # CLI（onefile 单文件）
+python packaging/build.py all              # 全部
+python packaging/build.py gui --release    # 输出到 dist/release/（默认 dist/dev/）
 ```
 
 - 从任何工作目录调用均可：`build.py` 启动时 `os.chdir` 到项目根，hook 用绝对路径引用
 - 平台自动检测（PyInstaller 不支持交叉编译——Linux/macOS 产物需在对应系统上构建）
 - 图标：`src/gui/resources/icons/app_icon.ico` 存在时 GUI 构建自动加 `--icon`
+- **GUI 形态**：默认 onefile 单文件（分发直观，冷启动 15~20s）；`--onedir` 切目录模式（启动快），构建后自动打成 `mi-scale-to-garmin-gui-onedir.zip` 整包（内含 `onedirREAD.md` 说明 + `_internal/` + exe，中间文件夹不保留）。形态与 dev/release 正交，两种形态产物可共存。决策背景见项目文档区 sprint-plan「打包形态决策」节
 
 ## 产物目录
 
 ```
 dist/
 ├── dev/                    # 开发验证产物（默认）
-│   ├── windows/  mi-scale-to-garmin-gui/（文件夹）+ mi-scale-to-garmin-cli.exe
+│   ├── windows/  mi-scale-to-garmin-gui.exe（onefile）
+│   │             mi-scale-to-garmin-gui-onedir.zip（onedir 整包，--onedir 时生成）
+│   │             mi-scale-to-garmin-cli.exe
 │   └── linux/    mi-scale-to-garmin-cli（ELF，需 glibc，Alpine 不兼容）
 └── release/                # 发布候选（--release）
     └── <platform>/...      # 结构同上

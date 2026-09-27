@@ -86,7 +86,7 @@ jobs:
           echo "version_number=${VERSION#v}" >> $GITHUB_OUTPUT
 
       # 构建参数单一来源：packaging/build.py（与本地构建完全一致）
-      # 产物输出到 dist/dev/<platform>/，后续打包步骤需从该路径取产物
+      # GUI 默认 onefile 单文件，产物输出到 dist/dev/<platform>/<name>.exe / <name>（macOS 无后缀）
       - name: Build with PyInstaller
         run: python packaging/build.py gui
 
@@ -94,19 +94,21 @@ jobs:
         if: matrix.platform == 'macos'
         run: |
           brew install create-dmg
+          # onefile 产物是单个可执行文件（非 .app bundle），DMG 内放单文件
+          # 未签名产物首次运行需 Gatekeeper 放行（右键→打开）
           create-dmg \
             --volname "${{ env.APP_NAME }}" \
             --window-pos 200 120 \
             --window-size 600 400 \
             --icon-size 100 \
-            --app-drop-link 450 185 \
             "${{ env.APP_NAME }}-${{ matrix.platform }}-${{ matrix.arch }}-${{ steps.version.outputs.version }}.${{ matrix.artifact_ext }}" \
-            "dist/dev/${{ matrix.platform }}/${{ env.GUI_NAME }}.app"
+            "dist/dev/${{ matrix.platform }}/${{ env.GUI_NAME }}"
 
       - name: Create ZIP archive (Windows)
         if: matrix.platform == 'windows'
         run: |
-          Compress-Archive -Path "dist\dev\${{ matrix.platform }}\${{ env.GUI_NAME }}" `
+          # onefile 单文件直接 zip（用户解压后单 exe 即可运行）
+          Compress-Archive -Path "dist\dev\${{ matrix.platform }}\${{ env.GUI_NAME }}.exe" `
             -DestinationPath "${{ env.APP_NAME }}-${{ matrix.platform }}-${{ matrix.arch }}-${{ steps.version.outputs.version }}.${{ matrix.artifact_ext }}"
         shell: pwsh
 

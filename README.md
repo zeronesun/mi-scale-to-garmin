@@ -313,7 +313,7 @@ Windows 任务计划程序见 [docs/USAGE.md](docs/USAGE.md#4-自动化运行)�
 
 ```bash
 pip install -r requirements/build.txt   # PyInstaller 等
-python packaging/build.py gui           # 只打 GUI（onedir 文件夹）
+python packaging/build.py gui           # 只打 GUI（默认 onefile 单文件；--onedir 切整包 zip）
 python packaging/build.py cli           # 只打 CLI（onefile 单文件）
 python packaging/build.py all           # 全部
 python packaging/build.py all --release # 输出到 dist/release/（默认 dist/dev/）
@@ -324,13 +324,15 @@ python packaging/build.py all --release # 输出到 dist/release/（默认 dist/
 ```
 dist/
 ├── dev/                    # 开发验证产物（默认）
-│   ├── windows/  mi-scale-to-garmin-gui/（文件夹）+ mi-scale-to-garmin-cli.exe
+│   ├── windows/  mi-scale-to-garmin-gui.exe（onefile）
+│   │             mi-scale-to-garmin-gui-onedir.zip（onedir 整包，--onedir 时生成）
+│   │             mi-scale-to-garmin-cli.exe
 │   └── linux/    mi-scale-to-garmin-cli（ELF，需 glibc，Alpine 不兼容）
 └── release/                # 发布候选（--release）
     └── <platform>/...      # 结构同上
 ```
 
-分发注意：GUI 是文件夹，`_internal/` 必须随 exe 一起（zip 整个文件夹）；CLI 是单文件直接分发。多平台发布走 CI（打 `vX.Y.Z` tag 触发，见 `.github/workflows/build-release.yml`）。
+分发注意：GUI 默认 onefile 单文件直接分发；`--onedir` 形态自动打成 `mi-scale-to-garmin-gui-onedir.zip` 整包（内含 `onedirREAD.md` 说明，解压后整个文件夹一起用，勿单独复制 exe）；CLI 是单文件直接分发。多平台发布走 CI（打 `vX.Y.Z` tag 触发，见 `.github/workflows/build-release.yml`）。
 
 ---
 
