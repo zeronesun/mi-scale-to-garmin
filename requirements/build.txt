@@ -1,6 +1,6 @@
 # Build toolchain (only needed to package exe, not to run the app)
-# Usage: pip install -r requirements-build.txt && python build.py [gui|cli|all]
+# Usage: pip install -r requirements/build.txt && python packaging/build.py [gui|cli|all]
 # NOTE: keep this file ASCII-only (pip reads it with the system locale encoding, e.g. GBK on zh-CN Windows)
 pyinstaller==6.22.3
 pyinstaller-hooks-contrib==2026.7
-Pillow==12.3.0  # scripts/make_icon.py（PNG 转多尺寸 ICO）
+Pillow==12.3.0  # packaging/make_icon.py (PNG to multi-size ICO)

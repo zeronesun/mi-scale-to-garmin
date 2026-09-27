@@ -1,6 +1,0 @@
-# GUI 运行依赖 = 基础依赖 + PyQt6
-# 打包依赖见 requirements-build.txt
--r requirements.txt
-PyQt6==6.6.1
-PyQt6-Qt6==6.6.1
-PyQt6-sip==13.6.0

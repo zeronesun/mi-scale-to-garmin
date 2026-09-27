@@ -7,6 +7,17 @@ import os
 import sys
 from pathlib import Path
 
+# 项目根目录（packaging/ 的上一级）：构建参数中的相对路径（src/、dist/ 等）均以此为基准
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+# Runtime hook 与本脚本同目录，用绝对路径引用，从任何工作目录调用都不会断
+RUNTIME_HOOK = str(Path(__file__).resolve().parent / 'pyi_rth_inspect.py')
+# PyInstaller 中间产物（workpath）与 spec 文件（specpath）统一落 .pyinstaller/（gitignore，可再生）
+WORKPATH = '.pyinstaller'
+SPEC_PATH = '.pyinstaller/spec'
+# 注意：--add-data 源路径、入口脚本、--icon 会被 PyInstaller 相对 spec 文件所在目录解析，
+# 因此必须用绝对路径（spec 已不在项目根）
+SRC_DIR = str(PROJECT_ROOT / 'src')
+
 
 def _distpath(release: bool = False) -> str:
     """
@@ -57,8 +68,10 @@ def build_gui(release: bool = False):
         '--clean',     # 清理缓存
         '--noconfirm', # 不询问确认
         f'--distpath={_distpath(release)}',
-        '--add-data=src:src',
-        '--runtime-hook=pyi_rth_pyqt6.py',  # 添加 runtime hook 修复 inspect 问题
+        f'--workpath={WORKPATH}',
+        f'--specpath={SPEC_PATH}',
+        f'--add-data={SRC_DIR}:src',
+        f'--runtime-hook={RUNTIME_HOOK}',  # runtime hook 修复打包后 inspect 问题
     ]
 
     # 添加所有隐藏导入
@@ -77,13 +90,13 @@ def build_gui(release: bool = False):
         '--exclude-module=scipy',
         '--exclude-module=PIL',
         '--exclude-module=logfire',
-        # 入口文件（必须放在最后）
-        'src/gui/main.py',
+        # 入口文件（必须放在最后，绝对路径）
+        str(PROJECT_ROOT / 'src' / 'gui' / 'main.py'),
     ])
 
-    # 添加图标（如果存在）
-    icon_path = 'src/gui/resources/icons/app_icon.ico'
-    if os.path.exists(icon_path):
+    # 添加图标（如果存在，绝对路径）
+    icon_path = PROJECT_ROOT / 'src' / 'gui' / 'resources' / 'icons' / 'app_icon.ico'
+    if icon_path.exists():
         args.insert(1, f'--icon={icon_path}')
 
     PyInstaller.__main__.run(args)
@@ -124,8 +137,10 @@ def build_cli(release: bool = False):
         '--clean',
         '--noconfirm',
         f'--distpath={_distpath(release)}',
-        '--add-data=src:src',
-        '--runtime-hook=pyi_rth_pyqt6.py',  # 添加 runtime hook 修复 inspect 问题
+        f'--workpath={WORKPATH}',
+        f'--specpath={SPEC_PATH}',
+        f'--add-data={SRC_DIR}:src',
+        f'--runtime-hook={RUNTIME_HOOK}',  # runtime hook 修复打包后 inspect 问题
     ]
 
     # 添加所有隐藏导入
@@ -144,8 +159,8 @@ def build_cli(release: bool = False):
         '--exclude-module=pandas',
         '--exclude-module=scipy',
         '--exclude-module=PIL',
-        # 入口文件（必须放在最后）
-        'src/main.py',
+        # 入口文件（必须放在最后，绝对路径）
+        str(PROJECT_ROOT / 'src' / 'main.py'),
     ])
 
     PyInstaller.__main__.run(args)
@@ -214,6 +229,9 @@ def main():
 
     产物目录：dist/<dev|release>/<platform>/（platform 自动检测）
     """
+    # 固定工作目录为项目根：保证 src/、dist/ 等相对路径与调用位置无关
+    os.chdir(PROJECT_ROOT)
+
     args = [a for a in sys.argv[1:] if a != '--release']
     release = '--release' in sys.argv[1:]
     if args:

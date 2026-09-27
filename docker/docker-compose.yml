@@ -6,8 +6,9 @@ services:
     image: zeronesun/mi-scale-to-garmin:latest
     container_name: garmin-sync-login
     volumes:
-      - ./config:/app/config
-      - ./data:/app/data
+      # 相对路径以本文件所在目录（docker/）为基准，指向项目根的 config/ 和 data/
+      - ../config:/app/config
+      - ../data:/app/data
     stdin_open: true
     tty: true
     command: ["python", "src/xiaomi/login.py", "--config", "config/users.json"]
@@ -19,6 +20,6 @@ services:
     image: zeronesun/mi-scale-to-garmin:latest
     container_name: garmin-sync
     volumes:
-      - ./config:/app/config
-      - ./data:/app/data
+      - ../config:/app/config
+      - ../data:/app/data
     command: ["python", "src/main.py", "--config", "config/users.json", "--sync"]

@@ -2,10 +2,10 @@
 将 PNG 转为多尺寸 ICO（16/32/48/64/128/256）
 
 用法（项目根目录）:
-    .venv\\Scripts\\python.exe scripts\\make_icon.py <源png路径> [-o 输出ico路径]
+    .venv\\Scripts\\python.exe packaging\\make_icon.py <源png路径> [-o 输出ico路径]
 
 默认输出: src/gui/resources/icons/app_icon.ico
-依赖: Pillow（构建工具链，见 requirements-build.txt）
+依赖: Pillow（构建工具链，见 requirements/build.txt）
 """
 import argparse
 import sys

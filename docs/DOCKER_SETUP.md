@@ -1,6 +1,6 @@
 # Docker 部署
 
-> ⚠️ **当前不可用**：镜像 `zeronesun/mi-scale-to-garmin` 尚未构建发布（仓库创建与 CI 发布进行中），`docker-compose pull` 会 404。镜像就绪后本文档自动生效，当前请使用 README 中的 Python 部署方式。
+> ⚠️ **当前不可用**：镜像 `zeronesun/mi-scale-to-garmin` 尚未构建发布（仓库创建与 CI 发布进行中），`docker compose pull` 会 404。镜像就绪后本文档自动生效，当前请使用 README 中的 Python 部署方式。
 
 ---
 
@@ -23,7 +23,7 @@ newgrp docker
 
 ```bash
 docker --version
-docker-compose --version
+docker compose version
 ```
 
 ---
@@ -81,7 +81,7 @@ cp config/users.json.example config/users.json
 ### 3. 拉取镜像
 
 ```bash
-docker-compose pull
+docker compose -f docker/docker-compose.yml pull
 ```
 
 首次拉取需从 Docker Hub 下载，耗时取决于网络。
@@ -91,7 +91,7 @@ docker-compose pull
 小米账号需验证码登录，首次必须单独运行登录服务：
 
 ```bash
-docker-compose --profile login run --rm login
+docker compose -f docker/docker-compose.yml --profile login run --rm login
 ```
 
 流程：
@@ -107,7 +107,7 @@ docker-compose --profile login run --rm login
 ### 5. 执行同步
 
 ```bash
-docker-compose run --rm sync
+docker compose -f docker/docker-compose.yml run --rm sync
 ```
 
 执行流程：复用 token 登录小米 → 拉取身体成分数据（终端默认显示最近 10 条）→ 生成 FIT 文件（`data/fit/`）→ 登录佳明并上传 → 备份全量数据（`data/body/body_data_*.json`）。
@@ -141,8 +141,8 @@ ls data/body/              # 数据备份
 1. `Win + R` → `taskschd.msc`，右侧"创建基本任务"。
 2. 名称如 `mi-scale-to-garmin`，触发器选"每天"并设置时间。
 3. 操作选"启动程序"：
-   - **程序或脚本**：`docker-compose`（新版 Docker Desktop 为 `docker`，参数加 `compose` 前缀）
-   - **添加参数**：`run --rm sync`
+   - **程序或脚本**：`docker`（新版 Docker Desktop 已整合 compose；旧版用 `docker-compose`）
+   - **添加参数**：`compose -f docker/docker-compose.yml run --rm sync`
    - **起始于**：项目完整路径（如 `D:\mi-scale-to-garmin`）
 
 ### Linux/Mac（crontab）
@@ -150,7 +150,7 @@ ls data/body/              # 数据备份
 ```bash
 crontab -e
 # 每天凌晨 2 点，日志追加到 data/sync.log
-0 2 * * * cd /项目完整路径 && docker-compose run --rm sync >> /项目完整路径/data/sync.log 2>&1
+0 2 * * * cd /项目完整路径 && docker compose -f docker/docker-compose.yml run --rm sync >> /项目完整路径/data/sync.log 2>&1
 ```
 
 crontab 时间格式：
@@ -166,7 +166,7 @@ crontab 时间格式：
 
 常见写法：`0 2 * * *`（每天 2 点）、`0 */6 * * *`（每 6 小时）、`0 8,20 * * *`（每天 8 点和 20 点）。
 
-> 注意：cron 环境不加载 shell 配置，若 `docker-compose` 不在 cron 的 PATH 中，先用 `which docker-compose` 查真实路径并写进绝对路径（可能在 `/usr/local/bin` 或 `/usr/bin`）。
+> 注意：cron 环境不加载 shell 配置，若 `docker` 不在 cron 的 PATH 中，先用 `which docker` 查真实路径并写进绝对路径（新版 Docker 已整合 compose，用 `docker compose`；`docker-compose` 独立版同理查 `which docker-compose`）。
 
 ---
 
@@ -174,11 +174,11 @@ crontab 时间格式：
 
 | 操作 | 命令 |
 |------|------|
-| 拉取镜像 | `docker-compose pull` |
-| 首次登录 | `docker-compose --profile login run --rm login` |
-| 执行同步 | `docker-compose run --rm sync` |
-| 查看日志 | `docker-compose logs sync` |
-| 停止所有容器 | `docker-compose down` |
+| 拉取镜像 | `docker compose -f docker/docker-compose.yml pull` |
+| 首次登录 | `docker compose -f docker/docker-compose.yml --profile login run --rm login` |
+| 执行同步 | `docker compose -f docker/docker-compose.yml run --rm sync` |
+| 查看日志 | `docker compose -f docker/docker-compose.yml logs sync` |
+| 停止所有容器 | `docker compose -f docker/docker-compose.yml down` |
 
 ---
 
@@ -198,8 +198,9 @@ mi-scale-to-garmin/
 │   ├── captcha/            # 登录验证码图片（触发验证码时自动生成）
 │   └── sync.log            # 定时任务日志（如设置）
 ├── src/                    # 源代码
-├── Dockerfile              # Docker 镜像定义
-└── docker-compose.yml      # 服务编排（login / sync 两个服务）
+└── docker/                 # Docker 配置
+    ├── Dockerfile          # 镜像定义（构建上下文为项目根）
+    └── docker-compose.yml  # 服务编排（login / sync 两个服务）
 ```
 
 ---
@@ -227,7 +228,7 @@ Docker Desktop 未启动。启动应用并等待其完全就绪后重试。
 重新运行登录命令：
 
 ```bash
-docker-compose --profile login run --rm login
+docker compose -f docker/docker-compose.yml --profile login run --rm login
 ```
 
 ### Q: Windows 找不到 `docker-compose` 命令？
@@ -235,10 +236,10 @@ docker-compose --profile login run --rm login
 新版 Docker Desktop 将 compose 整合进了 docker 命令：
 
 ```bash
-docker compose run --rm sync
+docker compose -f docker/docker-compose.yml run --rm sync
 ```
 
-（`docker compose` 两个词，非 `docker-compose`）
+（`docker compose` 两个词，非 `docker-compose`；compose 文件在 `docker/` 目录下，需 `-f` 指定）
 
 ---
 

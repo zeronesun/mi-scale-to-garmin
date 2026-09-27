@@ -4,7 +4,7 @@
 
 **数据去向**：
 
-- **推送到佳明**：FIT `weight_scale` 消息支持的 14 项（体重、BMI、体脂率、体水率、骨量、肌肉量、内脏脂肪等级、基础代谢、身体年龄、身体评分等）
+- **推送到佳明**：FIT `weight_scale` 消息的测量字段（体重、BMI、体脂率、体水率、骨量、肌肉量、代谢年龄、内脏脂肪等级、基础代谢、身体评分等 10 项，对应 FIT 的 `weight_scale` 消息）
 - **仅存本地**（`data/body/body_data_*.json`）：小米秤测出的全部 28 项（含蛋白质、腰臀比、体型分类等 FIT 格式不支持的指标）
 
 ---
@@ -39,7 +39,6 @@ mi-scale-to-garmin/
 ├── config/             # 配置目录（users.json 放这里或项目根目录均可）
 │   └── users.json.example  # 配置模板（含注释，复制为 users.json 使用）
 ├── docs/               # 详细文档（USAGE / DOCKER_SETUP / FILTER_CONFIG）
-├── scripts/            # 辅助脚本（make_icon.py 图标转换等）
 ├── data/               # 运行产物（自动创建，已 gitignore）
 │   ├── auth/             # 凭证（敏感，删除=重置认证）
 │   │   ├── xiaomi_auth_*.json  # 小米认证凭证（首次认证后自动生成）
@@ -53,13 +52,13 @@ mi-scale-to-garmin/
 ├── debug/              # 调试脚本（原始数据导出等）
 ├── .github/            # CI（build-release.yml：tag 触发多平台构建）
 ├── users.json          # 核心配置文件（无密：只存账号/邮箱等身份，不含密码和 token）
-├── requirements.txt    # 运行依赖
-├── requirements-gui.txt    # GUI 依赖（PyQt6 等）
-├── requirements-build.txt  # 打包依赖（PyInstaller 等）
-├── build.py            # 打包脚本（生成 GUI/CLI 可执行文件，支持 --release）
-├── pyi_rth_pyqt6.py    # PyInstaller PyQt6 运行时钩子
-├── Dockerfile          # Docker 镜像定义
-├── docker-compose.yml  # Docker 服务编排（login / sync）
+├── requirements/       # 依赖清单
+│   ├── runtime.txt     # 运行依赖
+│   ├── gui.txt         # GUI 依赖（PyQt6 等）
+│   └── build.txt       # 打包依赖（PyInstaller 等）
+├── packaging/          # 打包链（build.py + runtime hook + 图标工具，说明见 packaging/README.md）
+├── docker/             # Docker 镜像定义 + 服务编排（login / sync）
+├── .pyinstaller/       # PyInstaller 中间产物（已 gitignore，可再生）
 └── README.md
 ```
 
@@ -92,7 +91,7 @@ python -m venv .venv
 source .venv/bin/activate
 
 # 安装依赖
-pip install -r requirements.txt
+pip install -r requirements/runtime.txt
 ```
 
 ---
@@ -126,6 +125,27 @@ pip install -r requirements.txt
 - 开发版与打包版**各存一份 token 和配置**，互不共享——两种形态各认证一次即可，之后均零交互。
 - 开发版：所有数据目录均已 gitignore（`data/*` 全局防线），敏感凭证不会进入 git 仓库。
 - 发布版：不读写代码库目录，用户机器上无需源码；清理数据 = 删除对应数据目录。
+
+### 3.1 易混淆点：「开发版」≠「开发环境」（2026-09-27 澄清）
+
+代码判断数据目录的依据是**运行形态**（`sys.frozen`：是否打包后的可执行文件），**不是产物在哪个目录**：
+
+| 概念 | 含义 | 数据目录 |
+|------|------|----------|
+| **产物阶段**（`dist/dev/` vs `dist/release/`） | 只是输出目录标签：dev = 本地验证产物，release = 发布候选 | 不影响行为 |
+| **运行形态**（frozen vs 非 frozen） | 打包后的 exe/ELF = frozen；`python src/main.py` 源码直跑 = 非 frozen | **决定数据目录** |
+
+因此 `dist/dev/` 里的产物**也是打包版行为**——读用户数据目录，不读项目根。`dist/dev/` 与 `dist/release/` 的产物行为目前完全一致（release 的差异将来体现在图标/签名等，与数据目录无关）。
+
+**推论（测试时常用）**：想让 Linux 侧读项目根 `users.json` + 项目根 `data/` 跑完整同步，只有一种方式——**源码直跑**：
+
+```bash
+# WSL
+cd /mnt/d/zeronesun/002-work-craft/01-developing-debugging/mi-scale-to-garmin
+.venv-linux/bin/python src/main.py --sync
+```
+
+打包产物（任何平台、任何 dev/release）要跑通同步，需先把 `users.json` + `data/` 复制到对应用户数据目录（Linux：`~/.local/share/mi-scale-to-garmin/`）。
 
 ---
 
@@ -272,7 +292,7 @@ python src/xiaomi/login.py --config users.json
 ### 图形界面（可选）
 
 ```bash
-pip install -r requirements-gui.txt   # 含 PyQt6 等 GUI 依赖
+pip install -r requirements/gui.txt   # 含 PyQt6 等 GUI 依赖
 python src/gui/main.py users.json     # 配置文件路径为位置参数（默认 users.json）
 ```
 
@@ -292,11 +312,11 @@ Windows 任务计划程序见 [docs/USAGE.md](docs/USAGE.md#4-自动化运行)�
 ### 本地打包（开发者）
 
 ```bash
-pip install -r requirements-build.txt   # PyInstaller 等
-python build.py gui                     # 只打 GUI（onedir 文件夹）
-python build.py cli                     # 只打 CLI（onefile 单文件）
-python build.py all                     # 全部
-python build.py all --release           # 输出到 dist/release/（默认 dist/dev/）
+pip install -r requirements/build.txt   # PyInstaller 等
+python packaging/build.py gui           # 只打 GUI（onedir 文件夹）
+python packaging/build.py cli           # 只打 CLI（onefile 单文件）
+python packaging/build.py all           # 全部
+python packaging/build.py all --release # 输出到 dist/release/（默认 dist/dev/）
 ```
 
 产物目录按「阶段 + 平台」分层（平台自动检测，PyInstaller 不支持交叉编译——Linux/macOS 产物需在对应系统上构建）：
@@ -316,7 +336,7 @@ dist/
 
 ## 7. Docker 部署
 
-> ⚠️ **当前不可用**：镜像 `zeronesun/mi-scale-to-garmin` 尚未构建发布（仓库创建与 CI 发布进行中），`docker-compose pull` 会 404。当前请使用上面的 Python 方式部署；镜像就绪后本节自动生效。
+> ⚠️ **当前不可用**：镜像 `zeronesun/mi-scale-to-garmin` 尚未构建发布（仓库创建与 CI 发布进行中），`docker compose pull` 会 404。当前请使用上面的 Python 方式部署；镜像就绪后本节自动生效。
 
 不需要本地 Python 环境时可用 Docker 部署。前提：已安装 [Docker Desktop](https://www.docker.com/products/docker-desktop)（Windows/Mac）或通过 `curl -fsSL https://get.docker.com | sh` 安装（Linux），`docker --version` 可输出版本号。
 
@@ -326,9 +346,9 @@ dist/
 git clone git@github.com:zeronesun/mi-scale-to-garmin.git
 cd mi-scale-to-garmin
 cp config/users.json.example config/users.json   # 模板含 // 注释，复制后需删除
-docker-compose pull
-docker-compose --profile login run --rm login    # 首次：小米授权
-docker-compose run --rm sync                     # 同步
+docker compose -f docker/docker-compose.yml pull
+docker compose -f docker/docker-compose.yml --profile login run --rm login    # 首次：小米授权
+docker compose -f docker/docker-compose.yml run --rm sync                     # 同步
 ```
 
 ---
@@ -357,7 +377,7 @@ docker-compose run --rm sync                     # 同步
 
 ### Q: 提示 `ModuleNotFoundError: No module named 'requests'`？
 
-依赖未安装或虚拟环境未激活。激活虚拟环境后运行 `pip install -r requirements.txt`。
+依赖未安装或虚拟环境未激活。激活虚拟环境后运行 `pip install -r requirements/runtime.txt`。
 
 ### Q: 佳明上传一直提示 `Duplicate`？
 

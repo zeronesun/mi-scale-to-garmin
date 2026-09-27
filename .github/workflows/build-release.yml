@@ -55,15 +55,16 @@ jobs:
         with:
           path: |
             ~/.cache/pip
-            build
-          key: ${{ runner.os }}-pyinstaller-${{ hashFiles('**/requirements-gui.txt') }}
+            .pyinstaller
+          key: ${{ runner.os }}-pyinstaller-${{ hashFiles('**/requirements/gui.txt') }}
           restore-keys: |
             ${{ runner.os }}-pyinstaller-
 
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements-gui.txt
+          pip install -r requirements/gui.txt
+          pip install -r requirements/build.txt
 
       - name: Verify PyQt6 installation
         run: |
@@ -84,80 +85,10 @@ jobs:
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "version_number=${VERSION#v}" >> $GITHUB_OUTPUT
 
-      - name: Build with PyInstaller (macOS)
-        if: matrix.platform == 'macos'
-        run: |
-          python -m PyInstaller \
-            --name ${{ env.GUI_NAME }} \
-            --windowed \
-            --onedir \
-            --clean \
-            --noconfirm \
-            --add-data "src:src" \
-            --runtime-hook pyi_rth_pyqt6.py \
-            --hidden-import PyQt6 \
-            --hidden-import PyQt6.QtCore \
-            --hidden-import PyQt6.QtGui \
-            --hidden-import PyQt6.QtWidgets \
-            --hidden-import garmin \
-            --hidden-import xiaomi \
-            --hidden-import core \
-            --hidden-import core.models \
-            --hidden-import core.config_manager \
-            --hidden-import core.sync_service \
-            --hidden-import jaraco.collections \
-            --hidden-import jaraco.functools \
-            --hidden-import importlib_metadata \
-            --hidden-import pkg_resources \
-            --hidden-import packaging \
-            --collect-all fit_tool \
-            --collect-all garth \
-            --exclude-module tkinter \
-            --exclude-module matplotlib \
-            --exclude-module numpy \
-            --exclude-module pandas \
-            --exclude-module scipy \
-            --exclude-module PIL \
-            --exclude-module logfire \
-            src/gui/main.py
-
-      - name: Build with PyInstaller (Windows)
-        if: matrix.platform == 'windows'
-        run: |
-          python -m PyInstaller `
-            --name ${{ env.GUI_NAME }} `
-            --windowed `
-            --onedir `
-            --clean `
-            --noconfirm `
-            --add-data "src;src" `
-            --runtime-hook pyi_rth_pyqt6.py `
-            --hidden-import PyQt6 `
-            --hidden-import PyQt6.QtCore `
-            --hidden-import PyQt6.QtGui `
-            --hidden-import PyQt6.QtWidgets `
-            --hidden-import garmin `
-            --hidden-import xiaomi `
-            --hidden-import core `
-            --hidden-import core.models `
-            --hidden-import core.config_manager `
-            --hidden-import core.sync_service `
-            --hidden-import jaraco.collections `
-            --hidden-import jaraco.functools `
-            --hidden-import importlib_metadata `
-            --hidden-import pkg_resources `
-            --hidden-import packaging `
-            --collect-all fit_tool `
-            --collect-all garth `
-            --exclude-module tkinter `
-            --exclude-module matplotlib `
-            --exclude-module numpy `
-            --exclude-module pandas `
-            --exclude-module scipy `
-            --exclude-module PIL `
-            --exclude-module logfire `
-            src/gui/main.py
-        shell: pwsh
+      # 构建参数单一来源：packaging/build.py（与本地构建完全一致）
+      # 产物输出到 dist/dev/<platform>/，后续打包步骤需从该路径取产物
+      - name: Build with PyInstaller
+        run: python packaging/build.py gui
 
       - name: Create DMG (macOS)
         if: matrix.platform == 'macos'
@@ -170,12 +101,12 @@ jobs:
             --icon-size 100 \
             --app-drop-link 450 185 \
             "${{ env.APP_NAME }}-${{ matrix.platform }}-${{ matrix.arch }}-${{ steps.version.outputs.version }}.${{ matrix.artifact_ext }}" \
-            "dist/${{ env.GUI_NAME }}.app"
+            "dist/dev/${{ matrix.platform }}/${{ env.GUI_NAME }}.app"
 
       - name: Create ZIP archive (Windows)
         if: matrix.platform == 'windows'
         run: |
-          Compress-Archive -Path "dist\${{ env.GUI_NAME }}" `
+          Compress-Archive -Path "dist\dev\${{ matrix.platform }}\${{ env.GUI_NAME }}" `
             -DestinationPath "${{ env.APP_NAME }}-${{ matrix.platform }}-${{ matrix.arch }}-${{ steps.version.outputs.version }}.${{ matrix.artifact_ext }}"
         shell: pwsh
 

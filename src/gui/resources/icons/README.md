@@ -5,7 +5,7 @@
 `app_icon.ico` 已就位（2026-09-27 由源图 `小米体脂秤数据同步工具图标设计.png` 1536×1536 生成，源图在项目文档库维护，不进代码库）。
 
 两处生效点（均已自动接入，无需改代码）：
-- **exe 文件图标**：`build.py` 检测到本目录存在 `app_icon.ico` 时自动加 `--icon=` 参数
+- **exe 文件图标**：`packaging/build.py` 检测到本目录存在 `app_icon.ico` 时自动加 `--icon=` 参数
 - **窗口图标**（标题栏/任务栏）：`main_window.py` 的 `_set_window_icon()` 自动加载（开发版/打包版路径自适应，文件缺失时静默跳过）
 
 ## 生成源图（AI 绘图提示词）
@@ -57,9 +57,9 @@ Graphic elements take up 80% canvas, keep safe margin for 16px windows taskbar s
 1. 准备一张正方形 PNG（建议 ≥512×512，透明背景；可用上方提示词让 AI 生成）
 2. 项目根目录执行转换（源图任意尺寸，脚本自动缩放到 16/32/48/64/128/256 六档）：
    ```
-   .venv\Scripts\python.exe scripts\make_icon.py <源png路径>
+   .venv\Scripts\python.exe packaging\make_icon.py <源png路径>
    ```
-3. 重新打包：`.venv\Scripts\python.exe build.py gui`
+3. 重新打包：`.venv\Scripts\python.exe packaging\build.py gui`
 4. 运行 exe 验证（窗口图标由 `_set_window_icon()` 自动加载，无需额外操作）
 
 ### make_icon.py 参数
@@ -71,17 +71,17 @@ Graphic elements take up 80% canvas, keep safe margin for 16px windows taskbar s
 
 ```
 # 指定输出位置
-.venv\Scripts\python.exe scripts\make_icon.py 新图标.png -o 输出.ico
+.venv\Scripts\python.exe packaging\make_icon.py 新图标.png -o 输出.ico
 
 # 查看帮助
-.venv\Scripts\python.exe scripts\make_icon.py -h
+.venv\Scripts\python.exe packaging\make_icon.py -h
 ```
 
 注意事项：
 - 必须在**项目根目录**执行（默认输出路径是相对路径）
-- 依赖 **Pillow**（已在 requirements-build.txt）
+- 依赖 **Pillow**（已在 requirements/build.txt）
 - 源图非正方形会被拉变形，建议用正方形
-- 输出文件名建议固定 `app_icon.ico`——`build.py` 和 `_set_window_icon()` 都认这个路径，换名字要同步改两处
+- 输出文件名建议固定 `app_icon.ico`——`packaging/build.py` 和 `_set_window_icon()` 都认这个路径，换名字要同步改两处
 
 ## ICO 多尺寸结构
 

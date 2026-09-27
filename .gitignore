@@ -10,8 +10,8 @@ node_modules
 yarn-error.log
 
 /public
-# Build directory
-/build
+# PyInstaller workpath + spec（可再生中间产物）
+/.pyinstaller
 .DS_Store
 .sass-cache/
 _posts/
