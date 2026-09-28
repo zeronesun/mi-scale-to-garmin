@@ -11,7 +11,7 @@ on:
 env:
   PYTHON_VERSION: '3.12'
   APP_NAME: 'mi-scale-to-garmin'
-    GUI_NAME: 'mi-scale-to-garmin-gui'  # GUI 可执行文件名（与本地 build.py 一致）；发布包名仍用 APP_NAME
+  GUI_NAME: 'mi-scale-to-garmin-gui'  # GUI 可执行文件名（与本地 build.py 一致）；发布包名仍用 APP_NAME
 jobs:
   build:
     name: Build on ${{ matrix.platform }} (${{ matrix.arch }})
