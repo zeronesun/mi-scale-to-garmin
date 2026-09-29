@@ -8,6 +8,11 @@ import shutil
 import sys
 from pathlib import Path
 
+# Windows CI runner 控制台默认 cp1252，中文 print 会 UnicodeEncodeError；强制 UTF-8
+if hasattr(sys.stdout, 'reconfigure'):
+    sys.stdout.reconfigure(encoding='utf-8')
+    sys.stderr.reconfigure(encoding='utf-8')
+
 # 项目根目录（packaging/ 的上一级）：构建参数中的相对路径（src/、dist/ 等）均以此为基准
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 # Runtime hook 与本脚本同目录，用绝对路径引用，从任何工作目录调用都不会断

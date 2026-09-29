@@ -94,15 +94,18 @@ jobs:
         if: matrix.platform == 'macos'
         run: |
           brew install create-dmg
-          # onefile 产物是单个可执行文件（非 .app bundle），DMG 内放单文件
+          # onefile 产物是单个可执行文件（非 .app bundle），create-dmg 需要目录，
+          # 故先把单文件放进临时目录再打包
           # 未签名产物首次运行需 Gatekeeper 放行（右键→打开）
+          mkdir -p "dmg-staging/${{ env.GUI_NAME }}.app/Contents/MacOS"
+          cp "dist/dev/${{ matrix.platform }}/${{ env.GUI_NAME }}" "dmg-staging/${{ env.GUI_NAME }}.app/Contents/MacOS/${{ env.GUI_NAME }}"
           create-dmg \
             --volname "${{ env.APP_NAME }}" \
             --window-pos 200 120 \
             --window-size 600 400 \
             --icon-size 100 \
             "${{ env.APP_NAME }}-${{ matrix.platform }}-${{ matrix.arch }}-${{ steps.version.outputs.version }}.${{ matrix.artifact_ext }}" \
-            "dist/dev/${{ matrix.platform }}/${{ env.GUI_NAME }}"
+            "dmg-staging/${{ env.GUI_NAME }}.app"
 
       - name: Create ZIP archive (Windows)
         if: matrix.platform == 'windows'
