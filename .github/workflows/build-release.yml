@@ -8,6 +8,10 @@ on:
   release:
     types: [published]
 
+# 创建 Release 需要写 contents 权限（默认 GITHUB_TOKEN 只读，否则 softprops/action-gh-release 报 403）
+permissions:
+  contents: write
+
 env:
   PYTHON_VERSION: '3.12'
   APP_NAME: 'mi-scale-to-garmin'
