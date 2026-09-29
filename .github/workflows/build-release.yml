@@ -49,13 +49,13 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           cache: 'pip'
+          # 重构后 requirements.txt 移入 requirements/ 目录，需显式指定 lockfile 路径
+          cache-dependency-path: requirements/*.txt
 
       - name: Cache PyInstaller
         uses: actions/cache@v4
         with:
-          path: |
-            ~/.cache/pip
-            .pyinstaller
+          path: .pyinstaller
           key: ${{ runner.os }}-pyinstaller-${{ hashFiles('**/requirements/gui.txt') }}
           restore-keys: |
             ${{ runner.os }}-pyinstaller-
