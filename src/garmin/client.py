@@ -88,17 +88,27 @@ class GarminClient:
                     return False
                 logger.info(f"Attempting to resume Garmin session for {self.session_name} from {self.session_dir}")
                 try:
+                    # 设备绑定：garth load 前解密（明文给 garth，garth 不感知加密）
+                    from utils.token_crypto import decrypt_session_dir, encrypt_session_dir
+                    decrypt_session_dir(self.session_dir)
                     self._client.load(str(self.session_dir))
                     # Check if session is still valid by accessing username
                     # (访问 username 属性会触发 API 调用验证会话，但不打印账号)
                     _ = self._client.username
                     logger.info(f"Garmin session resumed successfully for user: {self.session_name}")
+                    # 重新加密（decrypt 后文件是明文，用完立即加密回去）
+                    encrypt_session_dir(self.session_dir)
                     # 补写绑定文件（旧会话无 account.json 时）+ 权限加固
                     from core.session_store import save_garmin_session_binding
                     save_garmin_session_binding(self.session_dir, self.email)
                     harden_garmin_session_dir(self.session_dir)
                     return True
                 except Exception as e:
+                    # 兜底：decrypt 后文件是明文，load 失败时重新加密回去
+                    try:
+                        encrypt_session_dir(self.session_dir)
+                    except Exception:
+                        pass
                     logger.warning(f"Failed to resume session: {e}. Performing fresh login.")
 
             # 无有效会话 → 需要密码重新认证（惰性获取）
@@ -137,7 +147,12 @@ class GarminClient:
                 if 'User-Agent' in self._client.sess.headers:
                     del self._client.sess.headers['User-Agent']
 
+            # 设备绑定：token 文件加密落盘（garth dump / 自研 OAuth save 后）
+            from utils.token_crypto import encrypt_session_dir
+            encrypt_session_dir(self.session_dir)
+
             # A：写账号绑定 + 权限加固（两条路径都执行）
+            # 注意：account.json 在加密之后写入（明文，只含哈希，不敏感）
             from core.session_store import save_garmin_session_binding
             save_garmin_session_binding(self.session_dir, self.email)
             harden_garmin_session_dir(self.session_dir)

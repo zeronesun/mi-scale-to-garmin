@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Any, Dict, Optional
 
 from utils.paths import get_xiaomi_auth_path, harden_file_permissions
+from utils.token_crypto import load_token_file, save_token_file, is_encrypted
 from core.account import account_hash
 
 logger = logging.getLogger(__name__)
@@ -41,8 +42,11 @@ def load_xiaomi_auth(xiaomi_prefix: str, xiaomi_account: str = "",
     if not path.exists():
         return None
     try:
-        with open(path, 'r', encoding='utf-8') as f:
-            data = json.load(f)
+        # 自动识别明文/加密格式；加密格式设备不匹配时返回 None
+        data = load_token_file(path)
+        if data is None:
+            logger.info(f"小米会话文件 {path.name} 无效或设备不匹配，需重新认证")
+            return None
         if not (data.get("userId") and data.get("passToken")):
             logger.warning(f"小米会话文件缺少关键字段: {path.name}")
             return None
@@ -76,7 +80,6 @@ def save_xiaomi_auth(xiaomi_prefix: str, token_data: Dict[str, Any],
         Path: 写入的文件路径
     """
     path = get_xiaomi_auth_path(xiaomi_prefix, custom_base)
-    path.parent.mkdir(parents=True, exist_ok=True)
     payload = {
         "userId": token_data.get("userId", ""),
         "passToken": token_data.get("passToken", ""),
@@ -84,8 +87,8 @@ def save_xiaomi_auth(xiaomi_prefix: str, token_data: Dict[str, Any],
     }
     if xiaomi_account:
         payload["account_hash"] = account_hash(xiaomi_account)
-    with open(path, 'w', encoding='utf-8') as f:
-        json.dump(payload, f, indent=4, ensure_ascii=False)
+    # 加密落盘（v=1 格式）
+    save_token_file(path, payload)
     if harden_file_permissions(path):
         logger.debug(f"小米会话文件权限已加固: {path.name}")
     return path
