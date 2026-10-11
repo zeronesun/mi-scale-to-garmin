@@ -11,3 +11,4 @@ annotated-types
 typing-extensions
 typing-inspection
 oauthlib
+PyQt6
