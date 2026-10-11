@@ -52,6 +52,61 @@ class TestDeviceId(unittest.TestCase):
         # 同一设备多次调用结果一致
         self.assertEqual(get_device_key(), get_device_key())
 
+    def test_fallback_to_persisted_uuid(self):
+        """系统标识失败时，回退到持久化 UUID"""
+        from utils import device_id
+        with patch.object(device_id, '_try_system_id', return_value=None):
+            key1 = get_device_key()
+            key2 = get_device_key()
+            # 两次调用结果一致（UUID 已持久化）
+            self.assertEqual(key1, key2)
+            self.assertEqual(len(key1), 32)
+
+    def test_fallback_to_hostname_mac(self):
+        """系统标识 + 持久化 UUID 均失败时，回退到 hostname+MAC"""
+        from utils import device_id
+        with patch.object(device_id, '_try_system_id', return_value=None):
+            with patch.object(device_id, '_try_persisted_id', return_value=None):
+                key = get_device_key()
+                self.assertEqual(len(key), 32)
+                self.assertIsInstance(key, bytes)
+
+    def test_persisted_uuid_file_created(self):
+        """回退到第 2 级时，.device_id 文件被创建"""
+        from utils import device_id
+        with patch.object(device_id, '_try_system_id', return_value=None):
+            # 确保文件存在（可能之前测试已创建）
+            from utils.paths import get_app_data_dir
+            id_file = get_app_data_dir() / '.device_id'
+            if id_file.exists():
+                id_file.unlink()
+            try:
+                get_device_key()
+                self.assertTrue(id_file.exists())
+                content = id_file.read_text(encoding='utf-8').strip()
+                self.assertTrue(len(content) > 0)
+            finally:
+                # 清理
+                if id_file.exists():
+                    id_file.unlink()
+
+    def test_persisted_uuid_stable_across_calls(self):
+        """持久化 UUID 在多次调用间稳定（只要文件在）"""
+        from utils import device_id
+        with patch.object(device_id, '_try_system_id', return_value=None):
+            from utils.paths import get_app_data_dir
+            id_file = get_app_data_dir() / '.device_id'
+            if id_file.exists():
+                id_file.unlink()
+            try:
+                key1 = get_device_key()
+                # 模拟进程重启：再次调用
+                key2 = get_device_key()
+                self.assertEqual(key1, key2)
+            finally:
+                if id_file.exists():
+                    id_file.unlink()
+
 
 class TestEncryptDecryptRoundtrip(unittest.TestCase):
     """加解密往返。"""
